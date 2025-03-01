@@ -20,6 +20,7 @@ export type SearchResult = {
   extractedPrice?: number;
   link?: string;
   thumbnail?: string;
+  position?: number;
 };
 
 /**
@@ -59,41 +60,56 @@ export const searchSimilarProducts = async (
     });
 
     const apiUrl = `https://www.searchapi.io/api/v1/search?${params.toString()}`;
-    console.log("Sending request to SearchAPI:", apiUrl);
+    console.log("Sending request to SearchAPI:", apiUrl.replace(apiKey, "API_KEY_HIDDEN"));
     
-    const response = await fetch(apiUrl, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(new Error('SearchAPI request timed out')), 30000);
+
+    try {
+      const response = await fetch(apiUrl, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`SearchAPI error (${response.status}):`, errorText);
+        throw new Error(`SearchAPI error: ${response.status} - ${errorText}`);
       }
-    });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`SearchAPI error (${response.status}):`, errorText);
-      throw new Error(`SearchAPI error: ${response.status}`);
+      const data = await response.json();
+      console.log("SearchAPI response received with status:", response.status);
+      
+      // Handle case where visual_matches is missing
+      if (!data.visual_matches || !Array.isArray(data.visual_matches)) {
+        console.warn("No visual matches found in SearchAPI response");
+        return [];
+      }
+      
+      // Transform to our format and limit to first 15 results
+      return data.visual_matches.slice(0, 15).map((match: any) => ({
+        title: match.title || 'Unknown Product',
+        source: match.source || 'Unknown Source',
+        price: match.price || undefined,
+        currency: match.currency || undefined,
+        extractedPrice: match.extracted_price || undefined,
+        link: match.link || undefined,
+        thumbnail: match.thumbnail || (match.image ? match.image.link : undefined),
+        position: match.position || undefined
+      }));
+    } catch (error: any) {
+      clearTimeout(timeoutId);
+      if (error.name === 'AbortError') {
+        throw new Error('SearchAPI request timed out after 30 seconds');
+      }
+      throw error;
     }
-
-    const data = await response.json();
-    console.log("SearchAPI response:", data);
-    
-    // Handle case where visual_matches is missing
-    if (!data.visual_matches || !Array.isArray(data.visual_matches)) {
-      console.warn("No visual matches found in SearchAPI response");
-      return [];
-    }
-    
-    // Transform to our format and limit to first 15 results
-    return data.visual_matches.slice(0, 15).map((match: any) => ({
-      title: match.title || 'Unknown Product',
-      source: match.source || match.link || 'Unknown Source',
-      price: match.price || undefined,
-      currency: match.currency || undefined,
-      extractedPrice: match.extracted_price || undefined,
-      link: match.link || undefined,
-      thumbnail: match.thumbnail || match.image?.link || undefined,
-    }));
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error searching with SearchAPI:', error);
     throw error;
   }

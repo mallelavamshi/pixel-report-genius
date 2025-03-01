@@ -1,3 +1,4 @@
+
 /**
  * Service for Anthropic API integration
  */
@@ -33,11 +34,20 @@ export const analyzeImageWithClaude = async (
       throw new Error("Anthropic API key is missing");
     }
     
+    // Format search results for the prompt
+    const formattedResults = searchResults.map(result => ({
+      title: result.title,
+      source: result.source,
+      price: result.price,
+      currency: result.currency,
+      link: result.link
+    }));
+    
     // Prepare the prompt for Claude
     const prompt = `Analyze this image in detail and provide a comprehensive assessment.
 
 Based on the search results below, identify what this item is and provide a detailed analysis:
-${JSON.stringify(searchResults, null, 2)}
+${JSON.stringify(formattedResults, null, 2)}
 
 Format your response like this:
 • Name: "[Item Name]" 
@@ -52,53 +62,67 @@ Your analysis should be detailed but concise. Include any distinctive features, 
     
     console.log("Sending request to Anthropic API");
     
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'anthropic-version': '2023-06-01',
-        'x-api-key': apiKey,
-      },
-      body: JSON.stringify({
-        model: 'claude-3-5-sonnet-20241022',
-        max_tokens: 4000,
-        messages: [
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'text',
-                text: prompt
-              },
-              {
-                type: 'image',
-                source: {
-                  type: 'url',
-                  url: imageUrl
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(new Error('Anthropic API request timed out')), 60000);
+    
+    try {
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'anthropic-version': '2023-06-01',
+          'x-api-key': apiKey,
+        },
+        body: JSON.stringify({
+          model: 'claude-3-5-sonnet-20241022',
+          max_tokens: 4000,
+          messages: [
+            {
+              role: 'user',
+              content: [
+                {
+                  type: 'text',
+                  text: prompt
+                },
+                {
+                  type: 'image',
+                  source: {
+                    type: 'url',
+                    url: imageUrl
+                  }
                 }
-              }
-            ]
-          }
-        ]
-      }),
-    });
+              ]
+            }
+          ]
+        }),
+        signal: controller.signal
+      });
 
-    if (!response.ok) {
-      const errorData = await response.text();
-      console.error(`Anthropic API error (${response.status}):`, errorData);
-      throw new Error(`Anthropic API error: ${response.status}`);
-    }
+      clearTimeout(timeoutId);
 
-    const data = await response.json();
-    console.log("Claude API response received:", data);
-    
-    if (!data.content || data.content.length === 0 || !data.content[0].text) {
-      console.error("Unexpected Claude API response format:", data);
-      throw new Error("Invalid response from Claude API");
+      if (!response.ok) {
+        const errorData = await response.text();
+        console.error(`Anthropic API error (${response.status}):`, errorData);
+        throw new Error(`Anthropic API error: ${response.status} - ${errorData}`);
+      }
+
+      const data = await response.json();
+      console.log("Claude API response received:", data ? "data received" : "no data");
+      
+      if (!data.content || data.content.length === 0 || !data.content[0].text) {
+        console.error("Unexpected Claude API response format:", data);
+        throw new Error("Invalid response from Claude API");
+      }
+      
+      return data.content[0].text;
+    } catch (error: any) {
+      clearTimeout(timeoutId);
+      if (error.name === 'AbortError') {
+        throw new Error('Anthropic API request timed out after 60 seconds');
+      }
+      throw error;
     }
-    
-    return data.content[0].text;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error analyzing with Anthropic:', error);
     throw error;
   }

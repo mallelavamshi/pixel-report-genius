@@ -206,7 +206,11 @@ const Task = () => {
         apiKeys.searchApi, 
         searchQuery
       );
-      console.log("Search results:", searchResults);
+      console.log("Search results:", searchResults.length, "items found");
+      
+      if (searchResults.length === 0) {
+        console.warn("No search results found, but continuing with Claude analysis");
+      }
       
       console.log("Analyzing with Claude");
       const claudeAnalysis = await analyzeImageWithClaude(imgbbUrl, searchResults, apiKeys.anthropic);
