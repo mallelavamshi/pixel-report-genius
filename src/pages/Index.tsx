@@ -33,7 +33,7 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-gradient-to-br from-white to-[#F6F6F7]">
       <NavBar />
       
       {isHeroVisible && <Hero />}
@@ -42,15 +42,15 @@ const Index = () => {
       
       <Pricing />
       
-      <footer className="bg-background py-12 border-t">
+      <footer className="bg-[#F1F1F1] py-12 border-t">
         <div className="container mx-auto px-4 text-center">
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-[#555555]">
             © {new Date().getFullYear()} Image Analysis Platform. All rights reserved.
           </p>
           <div className="mt-4 flex justify-center space-x-4">
-            <Button variant="link" size="sm">Terms of Service</Button>
-            <Button variant="link" size="sm">Privacy Policy</Button>
-            <Button variant="link" size="sm">Contact Us</Button>
+            <Button variant="link" size="sm" className="text-[#0FA0CE] hover:text-[#1EAEDB]">Terms of Service</Button>
+            <Button variant="link" size="sm" className="text-[#0FA0CE] hover:text-[#1EAEDB]">Privacy Policy</Button>
+            <Button variant="link" size="sm" className="text-[#0FA0CE] hover:text-[#1EAEDB]">Contact Us</Button>
           </div>
         </div>
       </footer>

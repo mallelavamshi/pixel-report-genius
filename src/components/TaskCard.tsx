@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { ExternalLink } from 'lucide-react';
 import { Task } from '@/contexts/AnalysisContext';
+import { Button } from '@/components/ui/button';
 
 interface TaskCardProps {
   task: Task;
@@ -75,13 +76,17 @@ const TaskCard = ({ task }: TaskCardProps) => {
         </div>
       </CardContent>
       
-      <CardFooter className="pt-0">
-        <Link 
-          to={`/task/${task.id}`}
-          className="text-sm text-primary flex items-center hover:underline"
+      <CardFooter className="pt-0 flex justify-end">
+        <Button 
+          variant="default" 
+          size="sm" 
+          className="bg-[#9b87f5] hover:bg-[#7E69AB] text-white"
+          asChild
         >
-          View details <ExternalLink className="ml-1 h-3 w-3" />
-        </Link>
+          <Link to={`/task/${task.id}`}>
+            View details <ExternalLink className="ml-1 h-3 w-3" />
+          </Link>
+        </Button>
       </CardFooter>
     </Card>
   );
