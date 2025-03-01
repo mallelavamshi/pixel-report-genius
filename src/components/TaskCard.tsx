@@ -11,17 +11,36 @@ interface TaskCardProps {
 }
 
 const TaskCard = ({ task }: TaskCardProps) => {
-  const timeAgo = formatDistance(new Date(task.created), new Date(), { addSuffix: true });
+  // Safely format the date - handle potential invalid date values
+  const getTimeAgo = () => {
+    try {
+      // First check if created exists and is a valid date
+      if (task.created && !isNaN(new Date(task.created).getTime())) {
+        return formatDistance(new Date(task.created), new Date(), { addSuffix: true });
+      }
+      // Then check if createdAt exists and is a valid date
+      else if (task.createdAt && !isNaN(new Date(task.createdAt).getTime())) {
+        return formatDistance(new Date(task.createdAt), new Date(), { addSuffix: true });
+      }
+      // If neither is valid, return a fallback
+      return "recently";
+    } catch (error) {
+      console.error("Error formatting date:", error);
+      return "recently";
+    }
+  };
   
   // Use the first image as the task image if available
   const taskImage = task.images && task.images.length > 0 ? task.images[0].imageUrl : task.imageUrl;
+  const taskTitle = task.title || task.name || 'Untitled Task';
+  const timeAgo = getTimeAgo();
   
   return (
     <Card className="overflow-hidden hover:shadow-md transition-shadow">
       <CardHeader className="pb-0">
         <div className="flex justify-between items-start">
           <CardTitle className="text-lg font-medium truncate">
-            {task.title || task.name || 'Untitled Task'}
+            {taskTitle}
           </CardTitle>
           <Badge variant={task.status === 'completed' ? 'default' : task.status === 'failed' ? 'destructive' : 'secondary'}>
             {task.status}
@@ -34,7 +53,7 @@ const TaskCard = ({ task }: TaskCardProps) => {
           <div className="aspect-video bg-muted rounded-md overflow-hidden">
             <img 
               src={taskImage} 
-              alt={task.title || 'Task image'} 
+              alt={taskTitle}
               className="w-full h-full object-cover"
             />
           </div>

@@ -17,6 +17,7 @@ const Dashboard = () => {
     // Simulate loading
     setTimeout(() => {
       setIsLoading(false);
+      console.log("Dashboard loaded, tasks:", tasks);
     }, 500);
 
     // Check if this is the first time loading the dashboard
@@ -33,10 +34,11 @@ const Dashboard = () => {
       );
       localStorage.setItem('hasSeenWelcome', 'true');
     }
-  }, []);
+  }, [tasks]);
 
   const handleCreateTask = () => {
     const newTask = createTask();
+    console.log("Created new task:", newTask);
     navigate(`/task/${newTask.id}`);
   };
 

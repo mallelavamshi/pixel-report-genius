@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -167,7 +166,7 @@ export const AnalysisProvider = ({ children }: { children: ReactNode }) => {
     return result;
   };
 
-  // Create a new task with default values
+  // Update the createTask function to ensure it creates proper date objects
   const createTask = () => {
     const now = new Date();
     const newTask: Task = {
