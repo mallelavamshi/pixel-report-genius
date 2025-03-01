@@ -145,57 +145,68 @@ export const generateTaskPDF = async (task: Task): Promise<string> => {
     doc.text(`Completed: ${task.completedAt.toLocaleString()}`, 15, 80);
   }
   
-  if (task.description) {
-    doc.setFontSize(14);
-    doc.text('Description:', 15, 100);
-    doc.setFontSize(12);
-    const splitDesc = doc.splitTextToSize(task.description, 180);
-    doc.text(splitDesc, 15, 110);
-  }
-  
-  let yPosition = task.description ? 140 : 100;
-  
-  // Add analysis results if available
-  if (task.images.some(img => img.analysisResult)) {
+  // Add a simple table for images and their analysis
+  if (task.images.length > 0) {
+    // Add image table
     doc.addPage();
     doc.setFontSize(18);
     doc.text('Analysis Results', 105, 20, { align: 'center' });
     
-    let currentY = 40;
-    
-    // Process images one by one with the required format
-    for (const image of task.images) {
-      if (!image.analysisResult) continue;
-      
-      // Check if we need a new page
-      if (currentY > 250) {
-        doc.addPage();
-        currentY = 40;
+    // Create table
+    doc.autoTable({
+      startY: 30,
+      theme: 'grid',
+      headStyles: { fillColor: [100, 100, 100], textColor: [255, 255, 255] },
+      head: [['Image', 'Analysis']],
+      columnStyles: {
+        0: { cellWidth: 60 },
+        1: { cellWidth: 130 }
+      },
+      body: await Promise.all(task.images.map(async (image) => {
+        // For each image, prepare a cell with the image and a cell with the analysis
+        let imgCell = '';
+        try {
+          // Resize image for the PDF
+          const resizedImageUrl = await resizeImage(image.imageUrl, 150, 150);
+          imgCell = resizedImageUrl;
+        } catch (error) {
+          console.error("Error resizing image for PDF:", error);
+          imgCell = '';
+        }
+        
+        // Prepare analysis text
+        let analysisText = '';
+        if (image.analysisResult && image.analysisResult.claudeAnalysis) {
+          analysisText = image.analysisResult.claudeAnalysis;
+        } else {
+          analysisText = 'No analysis available for this image.';
+        }
+        
+        return [
+          { content: imgCell, rowSpan: 1, cellWidth: 40, styles: { minCellHeight: 60 } },
+          { content: analysisText, rowSpan: 1, cellWidth: 130 }
+        ];
+      })),
+      didDrawCell: (data) => {
+        // This callback is used to draw images in the table
+        if (data.column.index === 0 && data.cell.section === 'body') {
+          const imgUrl = data.cell.raw;
+          if (imgUrl && typeof imgUrl === 'string') {
+            try {
+              const cellHeight = data.cell.height;
+              const cellWidth = data.cell.width;
+              const dim = Math.min(cellWidth, cellHeight) - 10;
+              const x = data.cell.x + (cellWidth - dim) / 2;
+              const y = data.cell.y + 5;
+              
+              doc.addImage(imgUrl, 'JPEG', x, y, dim, dim);
+            } catch (error) {
+              console.error("Error adding image to PDF cell:", error);
+            }
+          }
+        }
       }
-      
-      try {
-        // Resize image
-        const resizedImageUrl = await resizeImage(image.imageUrl, 200, 200);
-        
-        // Add image
-        doc.addImage(resizedImageUrl, 'JPEG', 15, currentY, 50, 50);
-        
-        // Add analysis text next to image
-        doc.setFontSize(12);
-        const analysisText = image.analysisResult.claudeAnalysis || "No analysis available";
-        const splitAnalysis = doc.splitTextToSize(analysisText.substring(0, 800) + "...", 130); // Limit text and width
-        
-        doc.text(splitAnalysis, 70, currentY);
-        
-        // Calculate the height used so we know where to place the next image
-        const textHeight = Math.max(splitAnalysis.length * 5, 50); // Estimate 5mm per line
-        currentY += textHeight + 20; // Add some padding
-      } catch (error) {
-        console.error('Error processing image for PDF:', error);
-        doc.text('Error processing image', 15, currentY);
-        currentY += 20;
-      }
-    }
+    });
   }
   
   // Save the PDF

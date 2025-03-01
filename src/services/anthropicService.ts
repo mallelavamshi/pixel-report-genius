@@ -26,16 +26,21 @@ export const analyzeImageWithClaude = async (
     }
     
     // Prepare the prompt for Claude
-    const prompt = `Analyze this image and provide a detailed description. Then, examine these search results and tell me about similar products found online:
-    ${JSON.stringify(searchResults, null, 2)}
-    
-    Please provide:
-    1. A comprehensive description of what you see in the image
-    2. Analysis of the search results - identify patterns, price ranges, popular models
-    3. Your assessment of whether these results are a good match for the image
-    4. Recommendations based on the search results
-    
-    Format your response in clear sections with headings.`;
+    const prompt = `Analyze this image in detail and provide a comprehensive assessment.
+
+Based on the search results below, identify what this item is and provide a detailed analysis:
+${JSON.stringify(searchResults, null, 2)}
+
+Format your response like this:
+• Name: "[Item Name]" 
+• Opinion: [Detailed assessment of the item, including its collectibility, value, rarity]
+• [Marketplace name] prices: [Price range found]
+• [Other marketplace] prices: [Price range found]
+• [Other retailers] prices: [Price info if available]
+• [Auction Houses]: [Information about auction appearances if relevant]
+• Additional Note: [Any important buying advice, authentication concerns, or other relevant details]
+
+Your analysis should be detailed but concise. Include any distinctive features, maker marks, or identifiers that would help in determining authenticity or value.`;
     
     console.log("Sending request to Anthropic API");
     

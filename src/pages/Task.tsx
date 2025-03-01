@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import NavBar from '@/components/NavBar';
@@ -54,7 +53,6 @@ const Task = () => {
   const [isApiKeysDialogOpen, setIsApiKeysDialogOpen] = useState(false);
   const { apiKeys } = useApiKeys();
   
-  // Image upload state
   const [showUploadMethodDialog, setShowUploadMethodDialog] = useState(false);
   const [uploadMethod, setUploadMethod] = useState<'camera' | 'gallery' | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -62,13 +60,11 @@ const Task = () => {
   const [imageDescription, setImageDescription] = useState('');
   const [showDescriptionDialog, setShowDescriptionDialog] = useState(false);
   
-  // Results display
   const [showResultsTable, setShowResultsTable] = useState(false);
   const [processingStatus, setProcessingStatus] = useState<Record<string, string>>({});
 
   const task = id ? getTask(id) : undefined;
 
-  // Check if API keys are configured
   const areApiKeysConfigured = () => {
     return !!(apiKeys.imgbb && apiKeys.searchApi && apiKeys.anthropic);
   };
@@ -153,7 +149,6 @@ const Task = () => {
       images: [...task.images, newImage]
     });
     
-    // Reset states
     setImageFile(null);
     setImagePreview(null);
     setImageDescription('');
@@ -176,7 +171,6 @@ const Task = () => {
       images: [...task.images, newImage]
     });
     
-    // Reset states
     setImageFile(null);
     setImagePreview(null);
     setImageDescription('');
@@ -189,49 +183,44 @@ const Task = () => {
     try {
       console.log("Processing image:", { imageUrl, imageDescription });
       
-      // Convert blob URL to file if needed
       let imageFile: File;
       if (imageUrl.startsWith('blob:') || imageUrl.startsWith('data:')) {
         console.log("Converting blob/data URL to file");
         imageFile = await urlToFile(imageUrl, 'image.jpg');
       } else {
-        // If we already have a URL, convert it to a file
         console.log("Converting URL to file");
         const response = await fetch(imageUrl);
         const blob = await response.blob();
         imageFile = new File([blob], 'image.jpg', { type: blob.type });
       }
       
-      // 1. Upload to ImgBB
       console.log("Uploading to ImgBB");
       const imgbbUrl = await uploadImageToImgBB(imageFile, apiKeys.imgbb);
       if (!imgbbUrl) throw new Error("Failed to upload image to ImgBB");
       console.log("Image uploaded successfully to ImgBB:", imgbbUrl);
       
-      // 2. Search similar products with SearchAPI
       console.log("Searching similar products with SearchAPI");
+      const searchQuery = imageDescription || "eBay Etsy collectible";
       const searchResults = await searchSimilarProducts(
         imgbbUrl, 
         apiKeys.searchApi, 
-        imageDescription || "eBay"
+        searchQuery
       );
       console.log("Search results:", searchResults);
       
-      // 3. Analyze with Claude
       console.log("Analyzing with Claude");
       const claudeAnalysis = await analyzeImageWithClaude(imgbbUrl, searchResults, apiKeys.anthropic);
       console.log("Claude analysis completed:", claudeAnalysis.substring(0, 100) + "...");
       
-      // 4. Return the analysis result
       return {
         id: uuidv4(),
         imageUrl: imgbbUrl,
         date: new Date(),
         objects: [
           { 
-            name: "Processed Object", 
+            name: imageDescription || "Analyzed Object", 
             confidence: 0.95, 
-            boundingBox: { x: 10, y: 10, width: 100, height: 100 } 
+            boundingBox: { x: 10, y: 10, width: 80, height: 80 } 
           }
         ],
         colors: [
@@ -239,8 +228,8 @@ const Task = () => {
           { color: "#33ff57", percentage: 25 },
           { color: "#3357ff", percentage: 40 }
         ],
-        tags: ["processed", "api-generated"],
-        description: imageDescription || "Processed image description",
+        tags: ["analyzed", "collectible", "appraised"],
+        description: imageDescription || "Analyzed collectible item",
         searchResults,
         claudeAnalysis
       };
@@ -265,43 +254,35 @@ const Task = () => {
     setIsSubmitting(true);
     setShowResultsTable(true);
     
-    // Update task status to processing
     updateTask(task.id, { status: 'processing' });
     
     try {
-      // Process each image
       const updatedImages = [...task.images];
       const newProcessingStatus: Record<string, string> = {};
       
       for (let i = 0; i < updatedImages.length; i++) {
         const image = updatedImages[i];
         
-        // Skip images that already have analysis results
         if (image.analysisResult) {
           console.log(`Image ${i} already has analysis results, skipping`);
           continue;
         }
         
         try {
-          // Update processing status
           newProcessingStatus[image.id] = `Processing image ${i+1} of ${updatedImages.length}`;
           setProcessingStatus(prev => ({ ...prev, [image.id]: newProcessingStatus[image.id] }));
           
-          // Process the image
           console.log(`Processing image ${i+1}/${updatedImages.length}:`, image.imageUrl);
           const analysisResult = await processImage(image.imageUrl, image.description);
           
-          // Update the image with the analysis result
           updatedImages[i] = {
             ...image,
             analysisResult
           };
           
-          // Update processing status
           newProcessingStatus[image.id] = `Completed`;
           setProcessingStatus(prev => ({ ...prev, [image.id]: newProcessingStatus[image.id] }));
           
-          // Update the task immediately after each image is processed
           updateTask(task.id, { 
             images: updatedImages
           });
@@ -315,7 +296,6 @@ const Task = () => {
         }
       }
       
-      // Final update to the task
       updateTask(task.id, { 
         status: 'completed',
         completedAt: new Date(),
@@ -324,12 +304,10 @@ const Task = () => {
       
       toast.success("Task completed successfully");
       
-      // For single-lot tasks, show the results immediately
       if (task.type === 'single-lot' && updatedImages.length > 0) {
         setActiveTab("results");
       }
       
-      // Generate reports automatically
       await handleGenerateReports();
       
     } catch (error) {
@@ -350,11 +328,9 @@ const Task = () => {
     setIsGeneratingReport(true);
     
     try {
-      // Generate PDF for the entire task
       const pdfUrl = await generateTaskPDF(task);
       setPdfUrl(pdfUrl);
       
-      // Generate Excel
       const excelUrl = generateTaskExcel(task);
       setExcelUrl(excelUrl);
       
@@ -686,7 +662,6 @@ const Task = () => {
         </div>
       </main>
       
-      {/* Upload Method Dialog */}
       <Dialog open={showUploadMethodDialog} onOpenChange={setShowUploadMethodDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -713,7 +688,6 @@ const Task = () => {
         </DialogContent>
       </Dialog>
       
-      {/* Description Dialog */}
       <Dialog open={showDescriptionDialog} onOpenChange={setShowDescriptionDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>

@@ -38,11 +38,14 @@ export const searchSimilarProducts = async (
       throw new Error("Invalid image URL provided");
     }
     
+    // Define markets to search based on user input or defaults
+    const searchQuery = queryText || "eBay Etsy collectible";
+    
     const params = new URLSearchParams({
       engine: 'google_lens',
       search_type: 'products',
       url: imageUrl,
-      q: queryText || "eBay", // Default to eBay if queryText is empty
+      q: searchQuery, 
       api_key: apiKey
     });
 
