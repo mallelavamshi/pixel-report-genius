@@ -15,11 +15,13 @@ export const uploadImageToImgBB = async (imageFile: File, apiKey: string): Promi
     
     // Check for missing API key
     if (!apiKey) {
+      console.error("ImgBB API key is missing");
       throw new Error("ImgBB API key is missing");
     }
 
     // Validate the file
     if (!imageFile || !(imageFile instanceof File)) {
+      console.error("Invalid image file provided");
       throw new Error("Invalid image file provided");
     }
     
@@ -30,27 +32,41 @@ export const uploadImageToImgBB = async (imageFile: File, apiKey: string): Promi
     
     console.log("Sending request to ImgBB API");
     
-    const response = await fetch('https://api.imgbb.com/1/upload', {
-      method: 'POST',
-      body: formData,
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`ImgBB API error (${response.status}):`, errorText);
-      throw new Error(`ImgBB API error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    console.log("ImgBB upload response:", data);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
     
-    if (!data.success) {
-      console.error("ImgBB upload failed:", data);
-      throw new Error('Failed to upload image to ImgBB');
-    }
+    try {
+      const response = await fetch('https://api.imgbb.com/1/upload', {
+        method: 'POST',
+        body: formData,
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
 
-    // Return the direct image URL
-    return data.data.url;
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`ImgBB API error (${response.status}):`, errorText);
+        throw new Error(`ImgBB API error: ${response.status} - ${errorText}`);
+      }
+
+      const data = await response.json();
+      console.log("ImgBB upload response received:", data ? "data received" : "no data");
+      
+      if (!data.success) {
+        console.error("ImgBB upload failed:", data);
+        throw new Error('Failed to upload image to ImgBB');
+      }
+
+      // Return the direct image URL
+      return data.data.url;
+    } catch (error) {
+      clearTimeout(timeoutId);
+      if (error.name === 'AbortError') {
+        throw new Error('ImgBB upload timed out after 30 seconds');
+      }
+      throw error;
+    }
   } catch (error) {
     console.error('Error uploading to ImgBB:', error);
     throw error;

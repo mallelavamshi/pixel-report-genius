@@ -3,6 +3,15 @@
  * Service for SearchAPI integration
  */
 
+// Add AbortSignal.timeout polyfill if not available
+if (!AbortSignal.timeout) {
+  AbortSignal.timeout = function timeout(ms: number) {
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(), ms);
+    return controller.signal;
+  };
+}
+
 export type SearchResult = {
   title: string;
   source: string;

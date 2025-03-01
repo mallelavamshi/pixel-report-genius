@@ -1,9 +1,17 @@
-
 /**
  * Service for Anthropic API integration
  */
 
 import { SearchResult } from './searchApiService';
+
+// Add AbortSignal.timeout polyfill if not available
+if (!AbortSignal.timeout) {
+  AbortSignal.timeout = function timeout(ms: number) {
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(), ms);
+    return controller.signal;
+  };
+}
 
 /**
  * Analyzes an image and search results using Anthropic's Claude

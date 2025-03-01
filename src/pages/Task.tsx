@@ -296,23 +296,29 @@ const Task = () => {
         }
       }
       
+      const anySuccessful = updatedImages.some(img => img.analysisResult);
+      
       updateTask(task.id, { 
-        status: 'completed',
+        status: anySuccessful ? 'completed' : 'failed',
         completedAt: new Date(),
         images: updatedImages
       });
       
-      toast.success("Task completed successfully");
-      
-      if (task.type === 'single-lot' && updatedImages.length > 0) {
-        setActiveTab("results");
+      if (anySuccessful) {
+        toast.success("Task completed successfully");
+        
+        if (task.type === 'single-lot' && updatedImages.length > 0) {
+          setActiveTab("results");
+        }
+        
+        await handleGenerateReports();
+      } else {
+        toast.error("Failed to process any images");
       }
       
-      await handleGenerateReports();
-      
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error processing task:", error);
-      toast.error("Failed to process task");
+      toast.error(`Failed to process task: ${error.message}`);
       updateTask(task.id, { status: 'failed' });
     } finally {
       setIsSubmitting(false);
