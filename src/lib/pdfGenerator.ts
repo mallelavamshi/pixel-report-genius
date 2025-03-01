@@ -2,6 +2,7 @@
 import { AnalysisResult, Task } from '@/contexts/AnalysisContext';
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
+import { resizeImage } from '@/services/imgbbService';
 
 declare module 'jspdf' {
   interface jsPDF {
@@ -10,7 +11,12 @@ declare module 'jspdf' {
 }
 
 export const generatePDF = async (analysis: AnalysisResult): Promise<string> => {
-  const doc = new jsPDF();
+  // A4 size in mm: 210 x 297
+  const doc = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: 'a4'
+  });
   
   // Add title
   doc.setFontSize(22);
@@ -22,28 +28,11 @@ export const generatePDF = async (analysis: AnalysisResult): Promise<string> => 
   
   // Add image
   try {
-    const img = new Image();
-    img.crossOrigin = 'Anonymous';
-    const imgData = await new Promise<string>((resolve, reject) => {
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        canvas.width = img.width;
-        canvas.height = img.height;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          reject(new Error('Could not get canvas context'));
-          return;
-        }
-        ctx.drawImage(img, 0, 0);
-        resolve(canvas.toDataURL('image/jpeg'));
-      };
-      img.onerror = () => reject(new Error('Could not load image'));
-      img.src = analysis.imageUrl;
-    });
+    // Resize image while maintaining aspect ratio
+    const resizedImageUrl = await resizeImage(analysis.imageUrl, 200, 200);
     
-    const imgWidth = 180;
-    const imgHeight = 100;
-    doc.addImage(imgData, 'JPEG', 15, 40, imgWidth, imgHeight);
+    // Add the resized image
+    doc.addImage(resizedImageUrl, 'JPEG', 15, 40, 50, 50);
   } catch (error) {
     console.error('Error adding image to PDF:', error);
     doc.text('Image preview not available', 105, 70, { align: 'center' });
@@ -51,25 +40,25 @@ export const generatePDF = async (analysis: AnalysisResult): Promise<string> => 
   
   // Add description
   doc.setFontSize(14);
-  doc.text('Description:', 15, 150);
+  doc.text('Description:', 15, 100);
   doc.setFontSize(12);
   
   const description = analysis.description;
   const splitDescription = doc.splitTextToSize(description, 180);
-  doc.text(splitDescription, 15, 160);
+  doc.text(splitDescription, 15, 110);
   
   // Add tags
   doc.setFontSize(14);
-  doc.text('Tags:', 15, 180);
+  doc.text('Tags:', 15, 130);
   doc.setFontSize(12);
-  doc.text(analysis.tags.join(', '), 15, 190);
+  doc.text(analysis.tags.join(', '), 15, 140);
   
   // Add detected objects table
   doc.setFontSize(14);
-  doc.text('Detected Objects:', 15, 210);
+  doc.text('Detected Objects:', 15, 160);
   
   doc.autoTable({
-    startY: 220,
+    startY: 170,
     head: [['Object', 'Confidence']],
     body: analysis.objects.map(obj => [
       obj.name,
@@ -132,7 +121,12 @@ export const generatePDF = async (analysis: AnalysisResult): Promise<string> => 
 };
 
 export const generateTaskPDF = async (task: Task): Promise<string> => {
-  const doc = new jsPDF();
+  // A4 size in mm: 210 x 297
+  const doc = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: 'a4'
+  });
   
   // Add title
   doc.setFontSize(22);
@@ -160,31 +154,48 @@ export const generateTaskPDF = async (task: Task): Promise<string> => {
   
   let yPosition = task.description ? 140 : 100;
   
-  // Add image summaries
-  doc.setFontSize(14);
-  doc.text(`Images Analyzed (${task.images.length})`, 15, yPosition);
-  
-  yPosition += 10;
-  
-  task.images.forEach((image, index) => {
-    if (yPosition > 250) {
-      doc.addPage();
-      yPosition = 20;
-    }
+  // Add analysis results if available
+  if (task.images.some(img => img.analysisResult)) {
+    doc.addPage();
+    doc.setFontSize(18);
+    doc.text('Analysis Results', 105, 20, { align: 'center' });
     
-    doc.setFontSize(12);
-    doc.text(`Image ${index + 1}${image.description ? ': ' + image.description : ''}`, 15, yPosition);
-    yPosition += 10;
+    let currentY = 40;
     
-    if (image.analysisResult) {
-      doc.setFontSize(10);
-      doc.text(`Objects: ${image.analysisResult.objects.map(o => o.name).join(', ')}`, 25, yPosition);
-      yPosition += 8;
+    // Process images one by one with the required format
+    for (const image of task.images) {
+      if (!image.analysisResult) continue;
       
-      doc.text(`Tags: ${image.analysisResult.tags.join(', ')}`, 25, yPosition);
-      yPosition += 15;
+      // Check if we need a new page
+      if (currentY > 250) {
+        doc.addPage();
+        currentY = 40;
+      }
+      
+      try {
+        // Resize image
+        const resizedImageUrl = await resizeImage(image.imageUrl, 200, 200);
+        
+        // Add image
+        doc.addImage(resizedImageUrl, 'JPEG', 15, currentY, 50, 50);
+        
+        // Add analysis text next to image
+        doc.setFontSize(12);
+        const analysisText = image.analysisResult.claudeAnalysis || "No analysis available";
+        const splitAnalysis = doc.splitTextToSize(analysisText, 135); // Max width 200px
+        
+        doc.text(splitAnalysis, 70, currentY);
+        
+        // Calculate the height used so we know where to place the next image
+        const textHeight = Math.max(splitAnalysis.length * 5, 50); // Estimate 5mm per line
+        currentY += textHeight + 20; // Add some padding
+      } catch (error) {
+        console.error('Error processing image for PDF:', error);
+        doc.text('Error processing image', 15, currentY);
+        currentY += 20;
+      }
     }
-  });
+  }
   
   // Save the PDF
   return URL.createObjectURL(doc.output('blob'));

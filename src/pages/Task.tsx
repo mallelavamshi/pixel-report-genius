@@ -1,11 +1,23 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import NavBar from '@/components/NavBar';
 import { useAnalysis } from '@/contexts/AnalysisContext';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { FileIcon, Image, Upload, FileText, ArrowLeft, Download, Zap, Settings, FileSpreadsheet } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { 
+  FileIcon, 
+  Image, 
+  Upload, 
+  FileText, 
+  ArrowLeft, 
+  Download, 
+  Zap, 
+  Settings, 
+  FileSpreadsheet, 
+  Camera,
+  Plus
+} from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import EnhancedImageUploader, { ImagePreviewList } from '@/components/EnhancedImageUploader';
 import { toast } from "sonner";
@@ -17,6 +29,17 @@ import { uploadImageToImgBB } from '@/services/imgbbService';
 import { searchSimilarProducts } from '@/services/searchApiService';
 import { analyzeImageWithClaude } from '@/services/anthropicService';
 import { v4 as uuidv4 } from 'uuid';
+import { 
+  Dialog, 
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle 
+} from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 const Task = () => {
   const { id } = useParams<{ id: string }>();
@@ -29,6 +52,17 @@ const Task = () => {
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [isApiKeysDialogOpen, setIsApiKeysDialogOpen] = useState(false);
   const { apiKeys } = useApiKeys();
+  
+  // Image upload state
+  const [showUploadMethodDialog, setShowUploadMethodDialog] = useState(false);
+  const [uploadMethod, setUploadMethod] = useState<'camera' | 'gallery' | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageDescription, setImageDescription] = useState('');
+  const [showDescriptionDialog, setShowDescriptionDialog] = useState(false);
+  
+  // Results display
+  const [showResultsTable, setShowResultsTable] = useState(false);
 
   const task = id ? getTask(id) : undefined;
 
@@ -52,15 +86,102 @@ const Task = () => {
     }
   }, [task, navigate]);
 
-  if (!task) {
-    return null;
-  }
+  const handleCameraCapture = useCallback(() => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.capture = 'environment';
+    
+    input.onchange = (e: Event) => {
+      const target = e.target as HTMLInputElement;
+      if (target.files && target.files.length > 0) {
+        const file = target.files[0];
+        setImageFile(file);
+        
+        const reader = new FileReader();
+        reader.onload = () => {
+          setImagePreview(reader.result as string);
+        };
+        reader.readAsDataURL(file);
+        
+        setShowUploadMethodDialog(false);
+        setShowDescriptionDialog(true);
+      }
+    };
+    
+    input.click();
+  }, []);
 
-  const handleUploadComplete = () => {
-    // This function is called after each successful upload
-    // For multi-lot tasks, we want to allow continued uploads
-    toast.success(`Image added to ${task.name}. You can add more images.`);
-  };
+  const handleGalleryUpload = useCallback(() => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    
+    input.onchange = (e: Event) => {
+      const target = e.target as HTMLInputElement;
+      if (target.files && target.files.length > 0) {
+        const file = target.files[0];
+        setImageFile(file);
+        
+        const reader = new FileReader();
+        reader.onload = () => {
+          setImagePreview(reader.result as string);
+        };
+        reader.readAsDataURL(file);
+        
+        setShowUploadMethodDialog(false);
+        setShowDescriptionDialog(true);
+      }
+    };
+    
+    input.click();
+  }, []);
+
+  const handleAddImageWithDescription = useCallback(() => {
+    if (!task || !imageFile || !imagePreview) return;
+    
+    const newImage = {
+      id: uuidv4(),
+      imageUrl: imagePreview,
+      description: imageDescription,
+      uploadedAt: new Date(),
+    };
+    
+    updateTask(task.id, {
+      images: [...task.images, newImage]
+    });
+    
+    // Reset states
+    setImageFile(null);
+    setImagePreview(null);
+    setImageDescription('');
+    setShowDescriptionDialog(false);
+    
+    toast.success("Image added successfully");
+  }, [task, imageFile, imagePreview, imageDescription, updateTask]);
+
+  const handleSkipDescription = useCallback(() => {
+    if (!task || !imageFile || !imagePreview) return;
+    
+    const newImage = {
+      id: uuidv4(),
+      imageUrl: imagePreview,
+      description: '',
+      uploadedAt: new Date(),
+    };
+    
+    updateTask(task.id, {
+      images: [...task.images, newImage]
+    });
+    
+    // Reset states
+    setImageFile(null);
+    setImagePreview(null);
+    setImageDescription('');
+    setShowDescriptionDialog(false);
+    
+    toast.success("Image added successfully");
+  }, [task, imageFile, imagePreview, updateTask]);
 
   const processImage = async (imageFile: File, imageDescription?: string) => {
     try {
@@ -103,7 +224,7 @@ const Task = () => {
   };
 
   const handleSubmitTask = async () => {
-    if (task.images.length === 0) {
+    if (!task || task.images.length === 0) {
       toast.error("Please upload at least one image");
       return;
     }
@@ -152,6 +273,11 @@ const Task = () => {
       });
       
       toast.success("Task completed successfully");
+      
+      // For single-lot tasks, show the results immediately
+      if (task.type === 'single-lot' && updatedImages.length > 0) {
+        setActiveTab("results");
+      }
     } catch (error) {
       console.error("Error processing task:", error);
       toast.error("Failed to process task");
@@ -170,22 +296,12 @@ const Task = () => {
     setIsGeneratingReport(true);
     
     try {
-      // For this demo, we'll just use the first image's analysis result
-      // In a real app, we'd create a comprehensive report for all images
-      const firstImageWithAnalysis = task.images.find(img => img.analysisResult);
-      
-      if (!firstImageWithAnalysis || !firstImageWithAnalysis.analysisResult) {
-        toast.error("No analysis results available");
-        setIsGeneratingReport(false);
-        return;
-      }
-      
-      // Generate PDF
-      const pdfUrl = await generatePDF(firstImageWithAnalysis.analysisResult);
+      // Generate PDF for the entire task
+      const pdfUrl = await generateTaskPDF(task);
       setPdfUrl(pdfUrl);
       
       // Generate Excel
-      const excelUrl = generateExcel(firstImageWithAnalysis.analysisResult);
+      const excelUrl = generateTaskExcel(task);
       setExcelUrl(excelUrl);
       
       toast.success("Reports generated successfully");
@@ -199,11 +315,11 @@ const Task = () => {
 
   const handleDownloadPdf = () => {
     if (pdfUrl) {
-      downloadPDF(pdfUrl, `${task.name.replace(/\s+/g, '-').toLowerCase()}-report.pdf`);
+      downloadPDF(pdfUrl, `${task?.name.replace(/\s+/g, '-').toLowerCase()}-report.pdf`);
     } else {
       handleGenerateReports().then(() => {
         if (pdfUrl) {
-          downloadPDF(pdfUrl, `${task.name.replace(/\s+/g, '-').toLowerCase()}-report.pdf`);
+          downloadPDF(pdfUrl, `${task?.name.replace(/\s+/g, '-').toLowerCase()}-report.pdf`);
         }
       });
     }
@@ -211,11 +327,11 @@ const Task = () => {
 
   const handleDownloadExcel = () => {
     if (excelUrl) {
-      downloadExcel(excelUrl, `${task.name.replace(/\s+/g, '-').toLowerCase()}-report.xlsx`);
+      downloadExcel(excelUrl, `${task?.name.replace(/\s+/g, '-').toLowerCase()}-report.xlsx`);
     } else {
       handleGenerateReports().then(() => {
         if (excelUrl) {
-          downloadExcel(excelUrl, `${task.name.replace(/\s+/g, '-').toLowerCase()}-report.xlsx`);
+          downloadExcel(excelUrl, `${task?.name.replace(/\s+/g, '-').toLowerCase()}-report.xlsx`);
         }
       });
     }
@@ -235,6 +351,10 @@ const Task = () => {
         return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
+
+  if (!task) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen pb-16">
@@ -309,30 +429,59 @@ const Task = () => {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <EnhancedImageUploader 
-                    taskId={task.id} 
-                    onUploadComplete={handleUploadComplete}
-                  />
+                  <Button 
+                    size="lg" 
+                    className="w-full py-8 text-lg"
+                    onClick={() => setShowUploadMethodDialog(true)}
+                  >
+                    <Plus className="h-6 w-6 mr-2" />
+                    Add Image
+                  </Button>
                 </CardContent>
               </Card>
             </div>
           )}
           
-          {(task.status === 'pending' || task.status === 'completed') && (
+          {task.images.length > 0 && (
             <div className="mb-8">
-              <ImagePreviewList taskId={task.id} />
-            </div>
-          )}
-          
-          {task.status === 'pending' && (
-            <div className="flex justify-end">
-              <Button 
-                onClick={handleSubmitTask}
-                disabled={isSubmitting || task.images.length === 0}
-                className="w-full sm:w-auto"
-              >
-                {isSubmitting ? 'Processing...' : 'Submit for Analysis'}
-              </Button>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Uploaded Images ({task.images.length})</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                    {task.images.map((image) => (
+                      <Card key={image.id} className="overflow-hidden">
+                        <div className="aspect-square relative">
+                          <img 
+                            src={image.imageUrl} 
+                            alt={image.description || "Uploaded image"} 
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <CardContent className="p-3">
+                          <p className="text-sm font-medium truncate">
+                            {image.description || "No description"}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {new Date(image.uploadedAt).toLocaleString()}
+                          </p>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </CardContent>
+                {task.status === 'pending' && (
+                  <CardFooter className="flex justify-end">
+                    <Button 
+                      onClick={handleSubmitTask}
+                      disabled={isSubmitting || task.images.length === 0}
+                    >
+                      {isSubmitting ? 'Processing...' : 'Submit for Analysis'}
+                    </Button>
+                  </CardFooter>
+                )}
+              </Card>
             </div>
           )}
           
@@ -363,9 +512,9 @@ const Task = () => {
                       <Image className="h-4 w-4 mr-2" />
                       Images
                     </TabsTrigger>
-                    <TabsTrigger value="summary">
+                    <TabsTrigger value="results">
                       <Zap className="h-4 w-4 mr-2" />
-                      Summary
+                      Results
                     </TabsTrigger>
                   </TabsList>
                   
@@ -400,13 +549,6 @@ const Task = () => {
                                     {image.analysisResult.searchResults.length} found
                                   </p>
                                 )}
-                                <Button 
-                                  size="sm" 
-                                  variant="outline" 
-                                  onClick={() => navigate(`/analysis/${image.analysisResult?.id}`)}
-                                >
-                                  View Detailed Analysis
-                                </Button>
                               </div>
                             ) : (
                               <p className="text-sm text-muted-foreground">
@@ -419,37 +561,51 @@ const Task = () => {
                     </div>
                   </TabsContent>
                   
-                  <TabsContent value="summary">
+                  <TabsContent value="results">
                     <div className="space-y-4">
-                      <Card>
-                        <CardContent className="p-4">
-                          <div className="flex justify-between items-center mb-4">
-                            <h3 className="text-lg font-medium">Task Summary</h3>
-                            <Badge className={getStatusColor(task.status)}>
-                              {task.status}
-                            </Badge>
-                          </div>
-                          
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                              <p className="text-sm text-muted-foreground mb-1">Task Type</p>
-                              <p className="font-medium">{task.type === 'multi-lot' ? 'Multi-Lot Analysis' : 'Single-Lot Analysis'}</p>
-                            </div>
-                            <div>
-                              <p className="text-sm text-muted-foreground mb-1">Created</p>
-                              <p className="font-medium">{new Date(task.createdAt).toLocaleString()}</p>
-                            </div>
-                            <div>
-                              <p className="text-sm text-muted-foreground mb-1">Completed</p>
-                              <p className="font-medium">{task.completedAt ? new Date(task.completedAt).toLocaleString() : 'N/A'}</p>
-                            </div>
-                            <div>
-                              <p className="text-sm text-muted-foreground mb-1">Images</p>
-                              <p className="font-medium">{task.images.length}</p>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
+                      <div className="flex justify-between items-center">
+                        <h3 className="text-lg font-medium">Analysis Results</h3>
+                        <Button variant="outline" onClick={() => setShowResultsTable(!showResultsTable)}>
+                          {showResultsTable ? 'Hide Table' : 'Show Table'}
+                        </Button>
+                      </div>
+                      
+                      {showResultsTable && (
+                        <div className="overflow-x-auto">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead className="w-[200px]">Image</TableHead>
+                                <TableHead>Analysis</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {task.images.map((image) => (
+                                <TableRow key={image.id}>
+                                  <TableCell>
+                                    <div className="w-[200px] h-[200px] flex items-center justify-center">
+                                      <img 
+                                        src={image.imageUrl} 
+                                        alt={image.description || "Analysis image"} 
+                                        className="max-w-[200px] max-h-[200px] object-contain"
+                                      />
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="whitespace-pre-wrap max-w-[200px]">
+                                    {image.analysisResult?.claudeAnalysis ? (
+                                      <div className="text-sm">
+                                        {image.analysisResult.claudeAnalysis.substring(0, 500)}...
+                                      </div>
+                                    ) : (
+                                      <div className="text-sm text-muted-foreground">No analysis available</div>
+                                    )}
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      )}
                       
                       <div className="flex justify-end gap-2">
                         <Button
@@ -467,6 +623,67 @@ const Task = () => {
           )}
         </div>
       </main>
+      
+      {/* Upload Method Dialog */}
+      <Dialog open={showUploadMethodDialog} onOpenChange={setShowUploadMethodDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Choose Upload Method</DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-4 py-4">
+            <Button 
+              onClick={handleCameraCapture} 
+              size="lg" 
+              className="h-32 flex flex-col items-center justify-center"
+            >
+              <Camera className="h-10 w-10 mb-2" />
+              <span>Take Photo</span>
+            </Button>
+            <Button 
+              onClick={handleGalleryUpload} 
+              size="lg" 
+              className="h-32 flex flex-col items-center justify-center"
+            >
+              <Image className="h-10 w-10 mb-2" />
+              <span>Choose from Gallery</span>
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Description Dialog */}
+      <Dialog open={showDescriptionDialog} onOpenChange={setShowDescriptionDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add Image Description</DialogTitle>
+            <DialogDescription>
+              You can add an optional description for this image.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            {imagePreview && (
+              <div className="mb-4 flex justify-center">
+                <img 
+                  src={imagePreview} 
+                  alt="Preview" 
+                  className="max-h-40 object-contain rounded-md"
+                />
+              </div>
+            )}
+            <Textarea
+              value={imageDescription}
+              onChange={(e) => setImageDescription(e.target.value)}
+              placeholder="Enter an optional description for this image"
+              className="w-full"
+              rows={3}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={handleSkipDescription}>Skip</Button>
+            <Button onClick={handleAddImageWithDescription}>Add & Upload</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       
       <ApiKeyManager 
         open={isApiKeysDialogOpen} 

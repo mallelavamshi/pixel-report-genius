@@ -1,9 +1,12 @@
+
 import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 
 export type TaskType = 'multi-lot' | 'single-lot';
 
 export type TaskStatus = 'pending' | 'processing' | 'completed' | 'failed';
+
+export type TaskTier = 'free' | 'basic' | 'premium';
 
 export type Task = {
   id: string;
@@ -12,12 +15,15 @@ export type Task = {
   description?: string;
   type: TaskType;
   status: TaskStatus;
+  tier?: TaskTier;
   createdAt: Date;
   created: Date;
   completedAt?: Date;
   images: TaskImage[];
   imageUrl?: string;
   maxImages?: number;
+  userId?: string;
+  inQueue?: boolean;
 };
 
 export type TaskImage = {
@@ -75,6 +81,8 @@ type AnalysisContextType = {
   removeImageFromTask: (taskId: string, imageId: string) => void;
   getTask: (id: string) => Task | undefined;
   createTask: (type?: TaskType) => Task;
+  getUserTasks: (userId: string) => Task[];
+  getUserTier: () => TaskTier;
 };
 
 const AnalysisContext = createContext<AnalysisContextType | undefined>(undefined);
@@ -162,20 +170,26 @@ export const AnalysisProvider = ({ children }: { children: ReactNode }) => {
 
   const createTask = (type: TaskType = 'single-lot') => {
     const now = new Date();
+    const taskName = type === 'single-lot' ? 'Single Image Analysis' : 'Multi-Image Analysis';
+    
     const newTask: Task = {
       id: uuidv4(),
-      name: 'New Task',
-      title: 'New Task',
+      name: taskName,
+      title: taskName,
       description: '',
       type: type,
       status: 'pending',
+      tier: getUserTier(),
       createdAt: now,
       created: now,
       images: [],
       maxImages: type === 'multi-lot' ? 10 : 1,
+      userId: localStorage.getItem('userRole') || 'user',
+      inQueue: false
     };
     
     addTask(newTask);
+    console.log("Creating new task:", newTask);
     return newTask;
   };
 
@@ -222,6 +236,16 @@ export const AnalysisProvider = ({ children }: { children: ReactNode }) => {
     return tasks.find(task => task.id === id);
   };
 
+  const getUserTasks = (userId: string) => {
+    return tasks.filter(task => task.userId === userId);
+  };
+
+  const getUserTier = (): TaskTier => {
+    // This would typically come from an authenticated user object
+    // For demo purposes, we'll just return a hardcoded value
+    return 'basic';
+  };
+
   return (
     <AnalysisContext.Provider 
       value={{ 
@@ -240,7 +264,9 @@ export const AnalysisProvider = ({ children }: { children: ReactNode }) => {
         addImageToTask,
         removeImageFromTask,
         getTask,
-        createTask
+        createTask,
+        getUserTasks,
+        getUserTier
       }}
     >
       {children}

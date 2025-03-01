@@ -76,6 +76,37 @@ export const generateTaskExcel = (task: Task): string => {
   // Create a new workbook
   const wb = XLSX.utils.book_new();
   
+  // Set columns width for the analysis worksheet to meet requirements
+  const wscols = [
+    { wch: 25 }, // column 1 (image) - 200px equivalent in Excel units
+    { wch: 100 }  // column 2 (analysis) - 200px equivalent in Excel units
+  ];
+  
+  // Create the analysis results worksheet
+  if (task.images.some(img => img.analysisResult)) {
+    const resultsData = [
+      ['Image', 'Analysis'],
+    ];
+    
+    // Add a row for each image and its analysis
+    task.images
+      .filter(img => img.analysisResult)
+      .forEach(image => {
+        resultsData.push([
+          image.description || 'Image',
+          image.analysisResult?.claudeAnalysis || 'No analysis available'
+        ]);
+      });
+    
+    const wsResults = XLSX.utils.aoa_to_sheet(resultsData);
+    
+    // Set column widths
+    wsResults['!cols'] = wscols;
+    
+    // Add the worksheet to the workbook
+    XLSX.utils.book_append_sheet(wb, wsResults, 'Analysis Results');
+  }
+  
   // Task Information
   const taskInfo = [
     ['Task Report: ' + task.name],
@@ -101,23 +132,6 @@ export const generateTaskExcel = (task: Task): string => {
   ];
   const wsImages = XLSX.utils.aoa_to_sheet(imagesData);
   XLSX.utils.book_append_sheet(wb, wsImages, 'Images');
-  
-  // Analysis Results (summarized)
-  if (task.images.some(img => img.analysisResult)) {
-    const analysisData = [
-      ['Image #', 'Objects Detected', 'Tags', 'Search Results Count'],
-      ...task.images
-        .filter(img => img.analysisResult)
-        .map((image, index) => [
-          (index + 1).toString(),
-          image.analysisResult?.objects.map(o => o.name).join(', ') || 'None',
-          image.analysisResult?.tags.join(', ') || 'None',
-          image.analysisResult?.searchResults?.length || 0
-        ])
-    ];
-    const wsAnalysis = XLSX.utils.aoa_to_sheet(analysisData);
-    XLSX.utils.book_append_sheet(wb, wsAnalysis, 'Analysis Results');
-  }
   
   // Generate and return Excel file
   const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });

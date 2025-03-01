@@ -26,7 +26,7 @@ export const analyzeImageWithClaude = async (
         'x-api-key': apiKey,
       },
       body: JSON.stringify({
-        model: 'claude-3-opus-20240229',
+        model: 'claude-3-5-sonnet-20241022',
         max_tokens: 4000,
         messages: [
           {
@@ -63,6 +63,8 @@ export const analyzeImageWithClaude = async (
     }
 
     const data = await response.json();
+    console.log("Claude API response:", data);
+    
     return data.content[0].text;
   } catch (error) {
     console.error('Error analyzing with Anthropic:', error);

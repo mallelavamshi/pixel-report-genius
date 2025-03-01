@@ -5,15 +5,32 @@ import CustomNavBar from '@/components/CustomNavBar';
 import TaskCard from '@/components/TaskCard';
 import { useAnalysis } from '@/contexts/AnalysisContext';
 import { Button } from '@/components/ui/button';
-import { PlusCircle } from 'lucide-react';
+import { PlusCircle, FileIcon, ImageIcon } from 'lucide-react';
 import { toast } from "sonner";
 import TaskTypeSelection from '@/components/TaskTypeSelection';
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogDescription, 
+  DialogFooter, 
+  DialogHeader, 
+  DialogTitle 
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const { tasks, createTask } = useAnalysis();
   const [isLoading, setIsLoading] = useState(true);
   const [showTaskTypeModal, setShowTaskTypeModal] = useState(false);
+  
+  // New state for task setup after selecting type
+  const [selectedTaskType, setSelectedTaskType] = useState<'single-lot' | 'multi-lot' | null>(null);
+  const [showTaskSetupModal, setShowTaskSetupModal] = useState(false);
+  const [newTaskName, setNewTaskName] = useState('');
+  const [newTaskDescription, setNewTaskDescription] = useState('');
 
   useEffect(() => {
     // Simulate loading
@@ -38,11 +55,45 @@ const Dashboard = () => {
     }
   }, [tasks]);
 
-  const handleCreateTask = (type: 'single-lot' | 'multi-lot') => {
-    const newTask = createTask(type);
-    console.log("Created new task:", newTask);
-    navigate(`/task/${newTask.id}`);
+  const handleTaskTypeSelect = (type: 'single-lot' | 'multi-lot') => {
+    setSelectedTaskType(type);
     setShowTaskTypeModal(false);
+    
+    if (type === 'single-lot') {
+      // For single-lot, create task immediately and navigate
+      const newTask = createTask('single-lot');
+      console.log("Created new single-lot task:", newTask);
+      navigate(`/task/${newTask.id}`);
+    } else {
+      // For multi-lot, show setup modal first
+      setShowTaskSetupModal(true);
+    }
+  };
+
+  const handleCreateMultiLotTask = () => {
+    if (!newTaskName.trim()) {
+      toast.error("Please enter a task name");
+      return;
+    }
+    
+    const newTask = createTask('multi-lot');
+    
+    // Update the task with name and description
+    if (newTask) {
+      newTask.name = newTaskName;
+      newTask.title = newTaskName;
+      if (newTaskDescription) {
+        newTask.description = newTaskDescription;
+      }
+      
+      console.log("Created new multi-lot task:", newTask);
+      navigate(`/task/${newTask.id}`);
+    }
+    
+    // Reset state
+    setShowTaskSetupModal(false);
+    setNewTaskName('');
+    setNewTaskDescription('');
   };
 
   return (
@@ -81,8 +132,55 @@ const Dashboard = () => {
       <TaskTypeSelection 
         isOpen={showTaskTypeModal} 
         onClose={() => setShowTaskTypeModal(false)}
-        onSelect={handleCreateTask}
+        onSelect={handleTaskTypeSelect}
       />
+
+      {/* Multi-Lot Task Setup Modal */}
+      <Dialog open={showTaskSetupModal} onOpenChange={setShowTaskSetupModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Multi-Lot Task Setup</DialogTitle>
+            <DialogDescription>
+              Name your task and add an optional description.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="task-name" className="text-right">
+                Task Name
+              </Label>
+              <Input
+                id="task-name"
+                value={newTaskName}
+                onChange={(e) => setNewTaskName(e.target.value)}
+                placeholder="Enter task name"
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-start gap-4">
+              <Label htmlFor="task-description" className="text-right pt-2">
+                Description
+              </Label>
+              <Textarea
+                id="task-description"
+                value={newTaskDescription}
+                onChange={(e) => setNewTaskDescription(e.target.value)}
+                placeholder="Optional description"
+                className="col-span-3"
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowTaskSetupModal(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleCreateMultiLotTask}>
+              Create & Continue
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
