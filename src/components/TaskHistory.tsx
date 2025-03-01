@@ -1,32 +1,33 @@
 
 import { useState } from 'react';
 import { useAnalysis } from '@/contexts/AnalysisContext';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ArrowRight, Grid, Image as ImageIcon, Clock, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useNavigate } from 'react-router-dom';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 
-const TaskHistory = () => {
-  const { tasks } = useAnalysis();
+type TaskHistoryProps = {
+  tasks?: Array<any>;
+  type?: 'all' | 'pending' | 'completed';
+};
+
+const TaskHistory = ({ tasks, type = 'all' }: TaskHistoryProps) => {
+  const { tasks: allTasks } = useAnalysis();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
-  const [filter, setFilter] = useState<'all' | 'completed' | 'pending' | 'processing'>('all');
+  
+  // Use provided tasks or all tasks from context
+  const tasksToDisplay = tasks || allTasks;
   
   // Sort tasks by creation date, newest first
-  const sortedTasks = [...tasks].sort((a, b) => 
+  const sortedTasks = [...tasksToDisplay].sort((a, b) => 
     new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   );
   
-  // Apply filtering
+  // Apply search filtering
   const filteredTasks = sortedTasks.filter(task => {
-    // Filter by status if not "all"
-    if (filter !== 'all' && task.status !== filter) {
-      return false;
-    }
-    
     // Apply search filter if there's a search term
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase();
@@ -54,119 +55,88 @@ const TaskHistory = () => {
     }
   };
 
-  if (tasks.length === 0) {
-    return null;
+  if (filteredTasks.length === 0) {
+    return (
+      <div className="text-center py-6">
+        <p className="text-muted-foreground">
+          {type === 'pending' ? 'No in-progress tasks' : 
+           type === 'completed' ? 'No completed tasks' : 'No tasks found'}
+        </p>
+      </div>
+    );
   }
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-xl font-medium">
-          Your Tasks
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="pt-4">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-          <div className="relative flex-1 w-full">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground/70" />
-            <Input
-              type="text"
-              placeholder="Search tasks..."
-              className="pl-8 w-full"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-          
-          <Tabs 
-            defaultValue="all" 
-            value={filter} 
-            onValueChange={(value) => setFilter(value as 'all' | 'completed' | 'pending' | 'processing')}
-            className="w-full sm:w-auto"
-          >
-            <TabsList className="w-full grid grid-cols-4">
-              <TabsTrigger value="all">All</TabsTrigger>
-              <TabsTrigger value="pending">Pending</TabsTrigger>
-              <TabsTrigger value="processing">Processing</TabsTrigger>
-              <TabsTrigger value="completed">Completed</TabsTrigger>
-            </TabsList>
-          </Tabs>
-        </div>
-        
-        {filteredTasks.length === 0 ? (
-          <div className="text-center py-8 border border-dashed rounded-lg">
-            <p className="text-muted-foreground">No tasks found</p>
-            {searchTerm && (
-              <Button 
-                variant="ghost" 
-                className="mt-2"
-                onClick={() => setSearchTerm('')}
-              >
-                Clear search
-              </Button>
-            )}
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {filteredTasks.map((task) => (
-              <Card key={task.id} className="overflow-hidden">
-                <CardContent className="p-4">
-                  <div className="flex flex-col sm:flex-row justify-between gap-4">
-                    <div className="flex items-start space-x-4">
-                      <div className="bg-accent/50 p-2 rounded-full">
-                        {task.type === 'multi-lot' ? (
-                          <Grid className="h-5 w-5" />
-                        ) : (
-                          <ImageIcon className="h-5 w-5" />
-                        )}
-                      </div>
-                      
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-medium">
-                            {task.name}
-                          </h3>
-                          <Badge className={getStatusColor(task.status)}>
-                            {task.status.charAt(0).toUpperCase() + task.status.slice(1)}
-                          </Badge>
-                        </div>
-                        
-                        {task.description && (
-                          <p className="text-sm text-muted-foreground mt-1 line-clamp-1">
-                            {task.description}
-                          </p>
-                        )}
-                        
-                        <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
-                          <div className="flex items-center">
-                            <Clock className="h-3 w-3 mr-1" />
-                            <span>{new Date(task.createdAt).toLocaleString()}</span>
-                          </div>
-                          <div>
-                            {task.images.length} image{task.images.length !== 1 ? 's' : ''}
-                          </div>
-                        </div>
-                      </div>
+    <div>
+      <div className="relative w-full mb-4">
+        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground/70" />
+        <Input
+          type="text"
+          placeholder="Search tasks..."
+          className="pl-8 w-full"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+      </div>
+      
+      <div className="space-y-4">
+        {filteredTasks.map((task) => (
+          <Card key={task.id} className="overflow-hidden hover:shadow-md transition-shadow">
+            <CardContent className="p-4">
+              <div className="flex flex-col sm:flex-row justify-between gap-4">
+                <div className="flex items-start space-x-4">
+                  <div className="bg-accent/50 p-2 rounded-full">
+                    {task.type === 'multi-lot' ? (
+                      <Grid className="h-5 w-5" />
+                    ) : (
+                      <ImageIcon className="h-5 w-5" />
+                    )}
+                  </div>
+                  
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-medium">
+                        {task.name}
+                      </h3>
+                      <Badge className={getStatusColor(task.status)}>
+                        {task.status.charAt(0).toUpperCase() + task.status.slice(1)}
+                      </Badge>
                     </div>
                     
-                    <div className="flex items-center sm:self-center sm:flex-col sm:items-end gap-2">
-                      <Button
-                        size="sm"
-                        onClick={() => navigate(`/task/${task.id}`)}
-                        className="w-full sm:w-auto"
-                      >
-                        <span className="sm:mr-2">View</span>
-                        <ArrowRight className="h-4 w-4 hidden sm:block" />
-                      </Button>
+                    {task.description && (
+                      <p className="text-sm text-muted-foreground mt-1 line-clamp-1">
+                        {task.description}
+                      </p>
+                    )}
+                    
+                    <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+                      <div className="flex items-center">
+                        <Clock className="h-3 w-3 mr-1" />
+                        <span>{new Date(task.createdAt).toLocaleString()}</span>
+                      </div>
+                      <div>
+                        {task.images.length} image{task.images.length !== 1 ? 's' : ''}
+                      </div>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+                </div>
+                
+                <div className="flex items-center sm:self-center sm:flex-col sm:items-end gap-2">
+                  <Button
+                    size="sm"
+                    onClick={() => navigate(`/task/${task.id}`)}
+                    className="w-full sm:w-auto"
+                  >
+                    <span className="sm:mr-2">View</span>
+                    <ArrowRight className="h-4 w-4 hidden sm:block" />
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
   );
 };
 

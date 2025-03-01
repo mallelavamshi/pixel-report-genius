@@ -1,5 +1,5 @@
 
-import React, { createContext, useState, useContext, ReactNode } from 'react';
+import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
 
 export type TaskType = 'multi-lot' | 'single-lot';
 
@@ -74,12 +74,62 @@ type AnalysisContextType = {
 
 const AnalysisContext = createContext<AnalysisContextType | undefined>(undefined);
 
+// Helper function to safely parse JSON with dates
+const parseWithDates = (json: string) => {
+  return JSON.parse(json, (key, value) => {
+    // Check if the value is a string that looks like an ISO date
+    if (typeof value === 'string' && 
+        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.*Z$/.test(value)) {
+      return new Date(value);
+    }
+    return value;
+  });
+};
+
 export const AnalysisProvider = ({ children }: { children: ReactNode }) => {
-  const [analyses, setAnalyses] = useState<AnalysisResult[]>([]);
+  // Load saved data from localStorage on initial render
+  const initialAnalyses = () => {
+    try {
+      const saved = localStorage.getItem('analyses');
+      return saved ? parseWithDates(saved) : [];
+    } catch (e) {
+      console.error('Error loading analyses from localStorage:', e);
+      return [];
+    }
+  };
+
+  const initialTasks = () => {
+    try {
+      const saved = localStorage.getItem('tasks');
+      return saved ? parseWithDates(saved) : [];
+    } catch (e) {
+      console.error('Error loading tasks from localStorage:', e);
+      return [];
+    }
+  };
+
+  const [analyses, setAnalyses] = useState<AnalysisResult[]>(initialAnalyses);
   const [currentAnalysis, setCurrentAnalysis] = useState<AnalysisResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const [tasks, setTasks] = useState<Task[]>(initialTasks);
   const [currentTask, setCurrentTask] = useState<Task | null>(null);
+
+  // Save to localStorage whenever analyses or tasks change
+  useEffect(() => {
+    try {
+      localStorage.setItem('analyses', JSON.stringify(analyses));
+    } catch (e) {
+      console.error('Error saving analyses to localStorage:', e);
+    }
+  }, [analyses]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('tasks', JSON.stringify(tasks));
+    } catch (e) {
+      console.error('Error saving tasks to localStorage:', e);
+    }
+  }, [tasks]);
 
   const addAnalysis = (analysis: AnalysisResult) => {
     // Ensure we don't add duplicate analyses

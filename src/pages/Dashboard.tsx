@@ -4,13 +4,16 @@ import { useNavigate } from 'react-router-dom';
 import NavBar from '@/components/NavBar';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { useAnalysis } from '@/contexts/AnalysisContext';
-import { FileText } from 'lucide-react';
+import { FileText, Clock } from 'lucide-react';
 import TaskTypeSelection from '@/components/TaskTypeSelection';
 import TaskHistory from '@/components/TaskHistory';
 
 const Dashboard = () => {
-  const { analyses, isLoading } = useAnalysis();
+  const { analyses, isLoading, tasks } = useAnalysis();
   const navigate = useNavigate();
+
+  const pendingTasks = tasks.filter(task => task.status === 'pending' || task.status === 'processing');
+  const completedTasks = tasks.filter(task => task.status === 'completed');
 
   return (
     <div className="min-h-screen pb-16">
@@ -38,21 +41,47 @@ const Dashboard = () => {
             </Card>
           </div>
           
-          <div className="animate-fade-in opacity-0" style={{ animationDelay: '400ms' }}>
-            <TaskHistory />
-          </div>
-          
-          {analyses.length === 0 && !isLoading && analyses.length === 0 && (
-            <div className="text-center py-12 animate-fade-in opacity-0" style={{ animationDelay: '400ms' }}>
-              <div className="mb-4 text-muted-foreground">
-                <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <h3 className="text-xl font-medium mb-2">No analyses yet</h3>
-                <p className="max-w-md mx-auto">
-                  Upload your first image to start analyzing and get detailed insights.
-                </p>
+          <div className="space-y-8 animate-fade-in opacity-0" style={{ animationDelay: '400ms' }}>
+            {pendingTasks.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-xl flex items-center">
+                    <Clock className="h-5 w-5 mr-2" />
+                    In Progress Tasks
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <TaskHistory tasks={pendingTasks} type="pending" />
+                </CardContent>
+              </Card>
+            )}
+            
+            {completedTasks.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-xl flex items-center">
+                    <FileText className="h-5 w-5 mr-2" />
+                    Completed Tasks
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <TaskHistory tasks={completedTasks} type="completed" />
+                </CardContent>
+              </Card>
+            )}
+            
+            {tasks.length === 0 && !isLoading && (
+              <div className="text-center py-12">
+                <div className="mb-4 text-muted-foreground">
+                  <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <h3 className="text-xl font-medium mb-2">No tasks yet</h3>
+                  <p className="max-w-md mx-auto">
+                    Create your first task above to start analyzing images and get detailed insights.
+                  </p>
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </main>
     </div>
