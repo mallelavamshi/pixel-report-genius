@@ -1,13 +1,13 @@
-import { useState, useEffect } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+
+import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ShieldCheck, User, Settings } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import ApiKeyManager from '@/components/ApiKeyManager';
 
-const NavBar = () => {
+const CustomNavBar = () => {
   const navigate = useNavigate();
-  const location = useLocation();
   const [isAdmin, setIsAdmin] = useState(() => localStorage.getItem('userRole') === 'admin');
   const [apiKeyManagerOpen, setApiKeyManagerOpen] = useState(false);
 
@@ -19,9 +19,9 @@ const NavBar = () => {
     toast.success(`You are now logged in as ${newRole}`);
     
     // Redirect to appropriate dashboard
-    if (newRole === 'admin' && !location.pathname.includes('/admin')) {
+    if (newRole === 'admin') {
       navigate('/admin');
-    } else if (newRole === 'user' && location.pathname.includes('/admin')) {
+    } else {
       navigate('/dashboard');
     }
   };
@@ -79,4 +79,4 @@ const NavBar = () => {
   );
 };
 
-export default NavBar;
+export default CustomNavBar;

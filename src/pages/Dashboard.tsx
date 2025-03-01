@@ -1,17 +1,19 @@
 
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import NavBar from '@/components/NavBar';
+import CustomNavBar from '@/components/CustomNavBar';
 import TaskCard from '@/components/TaskCard';
 import { useAnalysis } from '@/contexts/AnalysisContext';
 import { Button } from '@/components/ui/button';
 import { PlusCircle } from 'lucide-react';
 import { toast } from "sonner";
+import TaskTypeSelection from '@/components/TaskTypeSelection';
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const { tasks, createTask } = useAnalysis();
   const [isLoading, setIsLoading] = useState(true);
+  const [showTaskTypeModal, setShowTaskTypeModal] = useState(false);
 
   useEffect(() => {
     // Simulate loading
@@ -26,9 +28,9 @@ const Dashboard = () => {
     if (!hasSeenWelcome) {
       // Show welcome message with API key information
       toast.info(
-        "API keys pre-configured for testing",
+        "Ready for image analysis",
         {
-          description: "The application is ready for image analysis with pre-configured API keys.",
+          description: "The application is ready for image analysis. Contact admin for access.",
           duration: 5000,
         }
       );
@@ -36,20 +38,21 @@ const Dashboard = () => {
     }
   }, [tasks]);
 
-  const handleCreateTask = () => {
-    const newTask = createTask();
+  const handleCreateTask = (type: 'single-lot' | 'multi-lot') => {
+    const newTask = createTask(type);
     console.log("Created new task:", newTask);
     navigate(`/task/${newTask.id}`);
+    setShowTaskTypeModal(false);
   };
 
   return (
     <div className="min-h-screen pb-16">
-      <NavBar />
+      <CustomNavBar />
 
       <main className="container mx-auto px-4 pt-28">
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-medium">Dashboard</h1>
-          <Button onClick={handleCreateTask}>
+          <Button onClick={() => setShowTaskTypeModal(true)}>
             <PlusCircle className="h-4 w-4 mr-2" />
             Create Task
           </Button>
@@ -60,7 +63,7 @@ const Dashboard = () => {
         ) : tasks.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-gray-600 mb-4">No tasks created yet.</p>
-            <Button onClick={handleCreateTask}>
+            <Button onClick={() => setShowTaskTypeModal(true)}>
               <PlusCircle className="h-4 w-4 mr-2" />
               Create Your First Task
             </Button>
@@ -73,6 +76,13 @@ const Dashboard = () => {
           </div>
         )}
       </main>
+
+      {/* Task Type Selection Modal */}
+      <TaskTypeSelection 
+        isOpen={showTaskTypeModal} 
+        onClose={() => setShowTaskTypeModal(false)}
+        onSelect={handleCreateTask}
+      />
     </div>
   );
 };

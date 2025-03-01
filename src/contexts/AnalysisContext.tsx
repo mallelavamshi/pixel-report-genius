@@ -8,15 +8,16 @@ export type TaskStatus = 'pending' | 'processing' | 'completed' | 'failed';
 export type Task = {
   id: string;
   name: string;
-  title: string; // Added to match TaskCard expectations
+  title: string; 
   description?: string;
   type: TaskType;
   status: TaskStatus;
   createdAt: Date;
-  created: Date; // Added to match TaskCard expectations
+  created: Date;
   completedAt?: Date;
   images: TaskImage[];
-  imageUrl?: string; // Added to match TaskCard expectations
+  imageUrl?: string;
+  maxImages?: number;
 };
 
 export type TaskImage = {
@@ -73,15 +74,13 @@ type AnalysisContextType = {
   addImageToTask: (taskId: string, image: TaskImage) => void;
   removeImageFromTask: (taskId: string, imageId: string) => void;
   getTask: (id: string) => Task | undefined;
-  createTask: () => Task; // Added createTask function
+  createTask: (type?: TaskType) => Task;
 };
 
 const AnalysisContext = createContext<AnalysisContextType | undefined>(undefined);
 
-// Helper function to safely parse JSON with dates
 const parseWithDates = (json: string) => {
   return JSON.parse(json, (key, value) => {
-    // Check if the value is a string that looks like an ISO date
     if (typeof value === 'string' && 
         /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.*Z$/.test(value)) {
       return new Date(value);
@@ -91,7 +90,6 @@ const parseWithDates = (json: string) => {
 };
 
 export const AnalysisProvider = ({ children }: { children: ReactNode }) => {
-  // Load saved data from localStorage on initial render
   const initialAnalyses = () => {
     try {
       const saved = localStorage.getItem('analyses');
@@ -118,7 +116,6 @@ export const AnalysisProvider = ({ children }: { children: ReactNode }) => {
   const [tasks, setTasks] = useState<Task[]>(initialTasks);
   const [currentTask, setCurrentTask] = useState<Task | null>(null);
 
-  // Save to localStorage whenever analyses or tasks change
   useEffect(() => {
     try {
       localStorage.setItem('analyses', JSON.stringify(analyses));
@@ -136,18 +133,15 @@ export const AnalysisProvider = ({ children }: { children: ReactNode }) => {
   }, [tasks]);
 
   const addAnalysis = (analysis: AnalysisResult) => {
-    // Ensure we don't add duplicate analyses
     if (!analyses.some(a => a.id === analysis.id)) {
       setAnalyses(prev => [...prev, analysis]);
     }
   };
 
   const getAnalysis = (id: string) => {
-    // First, check in the standalone analyses array
     const directAnalysis = analyses.find(analysis => analysis.id === id);
     if (directAnalysis) return directAnalysis;
     
-    // If not found, check in task images
     let result: AnalysisResult | undefined;
     
     tasks.some(task => {
@@ -157,7 +151,7 @@ export const AnalysisProvider = ({ children }: { children: ReactNode }) => {
       
       if (foundImage && foundImage.analysisResult) {
         result = foundImage.analysisResult;
-        return true; // Stop the loop once found
+        return true;
       }
       
       return false;
@@ -166,19 +160,19 @@ export const AnalysisProvider = ({ children }: { children: ReactNode }) => {
     return result;
   };
 
-  // Update the createTask function to ensure it creates proper date objects
-  const createTask = () => {
+  const createTask = (type: TaskType = 'single-lot') => {
     const now = new Date();
     const newTask: Task = {
       id: uuidv4(),
       name: 'New Task',
-      title: 'New Task', // To match TaskCard expectations
+      title: 'New Task',
       description: '',
-      type: 'single-lot',
+      type: type,
       status: 'pending',
       createdAt: now,
-      created: now, // To match TaskCard expectations
+      created: now,
       images: [],
+      maxImages: type === 'multi-lot' ? 10 : 1,
     };
     
     addTask(newTask);
@@ -194,7 +188,6 @@ export const AnalysisProvider = ({ children }: { children: ReactNode }) => {
       if (task.id === id) {
         const updatedTask = { ...task, ...updates };
         
-        // If the task has images with analysis results, add those to the analyses collection
         if (updatedTask.images) {
           updatedTask.images.forEach(image => {
             if (image.analysisResult) {
@@ -247,7 +240,7 @@ export const AnalysisProvider = ({ children }: { children: ReactNode }) => {
         addImageToTask,
         removeImageFromTask,
         getTask,
-        createTask // Add the createTask function to the context
+        createTask
       }}
     >
       {children}

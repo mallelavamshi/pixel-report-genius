@@ -9,9 +9,16 @@ import Dashboard from "./pages/Dashboard";
 import Analysis from "./pages/Analysis";
 import Task from "./pages/Task";
 import NotFound from "./pages/NotFound";
+import AdminDashboard from "./pages/AdminDashboard";
 import { AnalysisProvider } from "./contexts/AnalysisContext";
 
 const queryClient = new QueryClient();
+
+// This would typically come from authentication context
+const isAdmin = () => {
+  // For testing purposes, return true or false based on localStorage
+  return localStorage.getItem('userRole') === 'admin';
+};
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -25,6 +32,10 @@ const App = () => (
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/analysis/:id" element={<Analysis />} />
             <Route path="/task/:id" element={<Task />} />
+            <Route 
+              path="/admin" 
+              element={isAdmin() ? <AdminDashboard /> : <Navigate to="/dashboard" replace />} 
+            />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
