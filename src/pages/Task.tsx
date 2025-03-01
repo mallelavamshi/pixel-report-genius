@@ -29,6 +29,12 @@ const Task = () => {
     return null;
   }
 
+  const handleUploadComplete = () => {
+    // This function is called after each successful upload
+    // For multi-lot tasks, we want to allow continued uploads
+    toast.success(`Image added to ${task.name}. You can add more images.`);
+  };
+
   const handleSubmitTask = () => {
     if (task.images.length === 0) {
       toast.error("Please upload at least one image");
@@ -124,7 +130,10 @@ const Task = () => {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <EnhancedImageUploader taskId={task.id} />
+                  <EnhancedImageUploader 
+                    taskId={task.id} 
+                    onUploadComplete={handleUploadComplete}
+                  />
                 </CardContent>
               </Card>
             </div>

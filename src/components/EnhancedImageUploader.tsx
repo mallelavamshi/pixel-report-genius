@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Camera, Upload, X, Image as ImageIcon, Trash2, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -105,6 +105,13 @@ const EnhancedImageUploader = ({ taskId, onUploadComplete }: EnhancedImageUpload
     simulateUpload(tempImageFile, imageDescription);
   };
 
+  const handleSkipDescription = () => {
+    if (!tempImageFile) return;
+    
+    setShowDescriptionDialog(false);
+    simulateUpload(tempImageFile);
+  };
+
   const simulateUpload = async (file: File, description?: string) => {
     setIsUploading(true);
     setProgress(0);
@@ -139,7 +146,6 @@ const EnhancedImageUploader = ({ taskId, onUploadComplete }: EnhancedImageUpload
           setPreview(null);
           setProgress(0);
           setIsUploading(false);
-          setUploadMethod(null);
           setImageDescription('');
           setTempImageFile(null);
           
@@ -166,6 +172,21 @@ const EnhancedImageUploader = ({ taskId, onUploadComplete }: EnhancedImageUpload
     setIsUploading(false);
     setImageDescription('');
     setTempImageFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+    if (cameraInputRef.current) {
+      cameraInputRef.current.value = '';
+    }
+  };
+
+  const resetForNewUpload = () => {
+    setTempImageFile(null);
+    setImageDescription('');
+    setPreview(null);
+    setProgress(0);
+    setIsUploading(false);
+    
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -207,7 +228,7 @@ const EnhancedImageUploader = ({ taskId, onUploadComplete }: EnhancedImageUpload
   if (uploadMethod === 'camera') {
     return (
       <div className="w-full space-y-4">
-        {preview ? (
+        {isUploading && preview ? (
           <div className="relative">
             <button 
               onClick={clearPreview}
@@ -221,14 +242,26 @@ const EnhancedImageUploader = ({ taskId, onUploadComplete }: EnhancedImageUpload
               alt="Preview" 
               className="w-full h-auto rounded-lg max-h-64 object-contain mx-auto"
             />
-            {isUploading && (
-              <div className="mt-4">
-                <Progress value={progress} className="h-2" />
-                <p className="text-sm text-muted-foreground mt-2 text-center">
-                  {progress < 100 ? 'Uploading image...' : 'Upload complete!'}
-                </p>
-              </div>
-            )}
+            <div className="mt-4">
+              <Progress value={progress} className="h-2" />
+              <p className="text-sm text-muted-foreground mt-2 text-center">
+                {progress < 100 ? 'Uploading image...' : 'Upload complete!'}
+              </p>
+            </div>
+          </div>
+        ) : preview ? (
+          <div className="relative">
+            <button 
+              onClick={clearPreview}
+              className="absolute -top-4 -right-4 p-1 bg-white rounded-full shadow-sm border border-border hover:bg-accent transition-colors"
+            >
+              <X className="h-4 w-4" />
+            </button>
+            <img 
+              src={preview} 
+              alt="Preview" 
+              className="w-full h-auto rounded-lg max-h-64 object-contain mx-auto"
+            />
           </div>
         ) : (
           <div className="text-center">
@@ -264,6 +297,33 @@ const EnhancedImageUploader = ({ taskId, onUploadComplete }: EnhancedImageUpload
             </div>
           </div>
         )}
+        
+        {showDescriptionDialog && (
+          <Dialog open={showDescriptionDialog} onOpenChange={setShowDescriptionDialog}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Add Image Description</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <Textarea
+                  placeholder="Enter an optional description for this image"
+                  value={imageDescription}
+                  onChange={(e) => setImageDescription(e.target.value)}
+                  rows={4}
+                  ref={descriptionInputRef}
+                />
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={handleSkipDescription}>
+                  Skip
+                </Button>
+                <Button onClick={handleUploadWithDescription}>
+                  Add & Upload
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
     );
   }
@@ -281,7 +341,7 @@ const EnhancedImageUploader = ({ taskId, onUploadComplete }: EnhancedImageUpload
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
         >
-          {preview ? (
+          {isUploading && preview ? (
             <div className="relative">
               <button 
                 onClick={clearPreview}
@@ -295,14 +355,26 @@ const EnhancedImageUploader = ({ taskId, onUploadComplete }: EnhancedImageUpload
                 alt="Preview" 
                 className="w-full h-auto rounded-lg max-h-64 object-contain mx-auto"
               />
-              {isUploading && (
-                <div className="mt-4">
-                  <Progress value={progress} className="h-2" />
-                  <p className="text-sm text-muted-foreground mt-2 text-center">
-                    {progress < 100 ? 'Uploading image...' : 'Upload complete!'}
-                  </p>
-                </div>
-              )}
+              <div className="mt-4">
+                <Progress value={progress} className="h-2" />
+                <p className="text-sm text-muted-foreground mt-2 text-center">
+                  {progress < 100 ? 'Uploading image...' : 'Upload complete!'}
+                </p>
+              </div>
+            </div>
+          ) : preview ? (
+            <div className="relative">
+              <button 
+                onClick={clearPreview}
+                className="absolute -top-4 -right-4 p-1 bg-white rounded-full shadow-sm border border-border hover:bg-accent transition-colors"
+              >
+                <X className="h-4 w-4" />
+              </button>
+              <img 
+                src={preview} 
+                alt="Preview" 
+                className="w-full h-auto rounded-lg max-h-64 object-contain mx-auto"
+              />
             </div>
           ) : (
             <div className="text-center">
@@ -339,6 +411,33 @@ const EnhancedImageUploader = ({ taskId, onUploadComplete }: EnhancedImageUpload
             </div>
           )}
         </div>
+        
+        {showDescriptionDialog && (
+          <Dialog open={showDescriptionDialog} onOpenChange={setShowDescriptionDialog}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Add Image Description</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <Textarea
+                  placeholder="Enter an optional description for this image"
+                  value={imageDescription}
+                  onChange={(e) => setImageDescription(e.target.value)}
+                  rows={4}
+                  ref={descriptionInputRef}
+                />
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={handleSkipDescription}>
+                  Skip
+                </Button>
+                <Button onClick={handleUploadWithDescription}>
+                  Add & Upload
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
     );
   }
