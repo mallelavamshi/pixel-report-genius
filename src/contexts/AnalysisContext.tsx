@@ -82,11 +82,34 @@ export const AnalysisProvider = ({ children }: { children: ReactNode }) => {
   const [currentTask, setCurrentTask] = useState<Task | null>(null);
 
   const addAnalysis = (analysis: AnalysisResult) => {
-    setAnalyses(prev => [...prev, analysis]);
+    // Ensure we don't add duplicate analyses
+    if (!analyses.some(a => a.id === analysis.id)) {
+      setAnalyses(prev => [...prev, analysis]);
+    }
   };
 
   const getAnalysis = (id: string) => {
-    return analyses.find(analysis => analysis.id === id);
+    // First, check in the standalone analyses array
+    const directAnalysis = analyses.find(analysis => analysis.id === id);
+    if (directAnalysis) return directAnalysis;
+    
+    // If not found, check in task images
+    let result: AnalysisResult | undefined;
+    
+    tasks.some(task => {
+      const foundImage = task.images.find(img => 
+        img.analysisResult && img.analysisResult.id === id
+      );
+      
+      if (foundImage && foundImage.analysisResult) {
+        result = foundImage.analysisResult;
+        return true; // Stop the loop once found
+      }
+      
+      return false;
+    });
+    
+    return result;
   };
 
   const addTask = (task: Task) => {
@@ -94,9 +117,23 @@ export const AnalysisProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const updateTask = (id: string, updates: Partial<Task>) => {
-    setTasks(prev => prev.map(task => 
-      task.id === id ? { ...task, ...updates } : task
-    ));
+    setTasks(prev => prev.map(task => {
+      if (task.id === id) {
+        const updatedTask = { ...task, ...updates };
+        
+        // If the task has images with analysis results, add those to the analyses collection
+        if (updatedTask.images) {
+          updatedTask.images.forEach(image => {
+            if (image.analysisResult) {
+              addAnalysis(image.analysisResult);
+            }
+          });
+        }
+        
+        return updatedTask;
+      }
+      return task;
+    }));
   };
 
   const addImageToTask = (taskId: string, image: TaskImage) => {

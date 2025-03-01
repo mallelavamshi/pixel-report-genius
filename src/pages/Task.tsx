@@ -5,16 +5,21 @@ import NavBar from '@/components/NavBar';
 import { useAnalysis } from '@/contexts/AnalysisContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Grid, Image, Upload, FileText, ArrowLeft, Download } from 'lucide-react';
+import { Grid, Image, Upload, FileText, ArrowLeft, Download, Zap } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import EnhancedImageUploader, { ImagePreviewList } from '@/components/EnhancedImageUploader';
 import { toast } from "sonner";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { generatePDF, downloadPDF } from '@/lib/pdfGenerator';
 
 const Task = () => {
   const { id } = useParams<{ id: string }>();
   const { getTask, updateTask } = useAnalysis();
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [reportUrl, setReportUrl] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState("images");
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
 
   const task = id ? getTask(id) : undefined;
 
@@ -48,13 +53,88 @@ const Task = () => {
     
     // In a real app, this would be an API call to start the task processing
     setTimeout(() => {
+      // Simulate creating analysis results for each image
+      const updatedImages = task.images.map(image => {
+        return {
+          ...image,
+          analysisResult: {
+            id: Math.random().toString(36).substring(2, 15),
+            imageUrl: image.imageUrl,
+            date: new Date(),
+            objects: [
+              { 
+                name: "Object 1", 
+                confidence: 0.95, 
+                boundingBox: { x: 10, y: 10, width: 100, height: 100 } 
+              },
+              { 
+                name: "Object 2", 
+                confidence: 0.87, 
+                boundingBox: { x: 150, y: 150, width: 80, height: 80 } 
+              }
+            ],
+            colors: [
+              { color: "#ff5733", percentage: 35 },
+              { color: "#33ff57", percentage: 25 },
+              { color: "#3357ff", percentage: 40 }
+            ],
+            tags: ["tag1", "tag2", "tag3"],
+            description: "AI-generated description of the image content.",
+          }
+        };
+      });
+      
       updateTask(task.id, { 
         status: 'completed',
-        completedAt: new Date()
+        completedAt: new Date(),
+        images: updatedImages
       });
+      
       setIsSubmitting(false);
       toast.success("Task completed successfully");
     }, 3000);
+  };
+
+  const handleGenerateReport = async () => {
+    if (!task || task.images.length === 0) {
+      toast.error("No images to generate report from");
+      return;
+    }
+    
+    setIsGeneratingReport(true);
+    
+    try {
+      // For this demo, we'll just use the first image's analysis result
+      // In a real app, we'd create a comprehensive report for all images
+      const firstImageWithAnalysis = task.images.find(img => img.analysisResult);
+      
+      if (!firstImageWithAnalysis || !firstImageWithAnalysis.analysisResult) {
+        toast.error("No analysis results available");
+        setIsGeneratingReport(false);
+        return;
+      }
+      
+      const pdfUrl = await generatePDF(firstImageWithAnalysis.analysisResult);
+      setReportUrl(pdfUrl);
+      toast.success("Report generated successfully");
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      toast.error("Failed to generate report");
+    } finally {
+      setIsGeneratingReport(false);
+    }
+  };
+
+  const handleDownloadReport = () => {
+    if (reportUrl) {
+      downloadPDF(reportUrl, `${task.name.replace(/\s+/g, '-').toLowerCase()}-report.pdf`);
+    } else {
+      handleGenerateReport().then(() => {
+        if (reportUrl) {
+          downloadPDF(reportUrl, `${task.name.replace(/\s+/g, '-').toLowerCase()}-report.pdf`);
+        }
+      });
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -108,7 +188,7 @@ const Task = () => {
             </div>
             
             {task.status === 'completed' && (
-              <Button>
+              <Button onClick={handleDownloadReport}>
                 <Download className="h-4 w-4 mr-2" />
                 Download Report
               </Button>
@@ -139,9 +219,11 @@ const Task = () => {
             </div>
           )}
           
-          <div className="mb-8">
-            <ImagePreviewList taskId={task.id} />
-          </div>
+          {(task.status === 'pending' || task.status === 'completed') && (
+            <div className="mb-8">
+              <ImagePreviewList taskId={task.id} />
+            </div>
+          )}
           
           {task.status === 'pending' && (
             <div className="flex justify-end">
@@ -176,34 +258,105 @@ const Task = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-center p-4">
-                  <p className="text-muted-foreground">
-                    Your analysis is complete. Download the report or view individual image results below.
-                  </p>
-                </div>
-                
-                {/* This would be replaced with actual analysis results in a real app */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
-                  {task.images.map((image) => (
-                    <Card key={image.id}>
-                      <div className="aspect-video">
-                        <img 
-                          src={image.imageUrl} 
-                          alt={image.description || "Analysis image"} 
-                          className="w-full h-full object-cover"
-                        />
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                  <TabsList className="mb-4">
+                    <TabsTrigger value="images">
+                      <Image className="h-4 w-4 mr-2" />
+                      Images
+                    </TabsTrigger>
+                    <TabsTrigger value="summary">
+                      <Zap className="h-4 w-4 mr-2" />
+                      Summary
+                    </TabsTrigger>
+                  </TabsList>
+                  
+                  <TabsContent value="images">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+                      {task.images.map((image) => (
+                        <Card key={image.id} className="overflow-hidden">
+                          <div className="aspect-video">
+                            <img 
+                              src={image.imageUrl} 
+                              alt={image.description || "Analysis image"} 
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                          <CardContent className="p-4">
+                            <h4 className="font-medium mb-2">
+                              {image.description || "Image Analysis"}
+                            </h4>
+                            {image.analysisResult ? (
+                              <div className="space-y-2">
+                                <p className="text-sm">
+                                  <span className="font-medium">Objects:</span>{' '}
+                                  {image.analysisResult.objects.map(obj => obj.name).join(', ')}
+                                </p>
+                                <p className="text-sm">
+                                  <span className="font-medium">Tags:</span>{' '}
+                                  {image.analysisResult.tags.join(', ')}
+                                </p>
+                                <Button 
+                                  size="sm" 
+                                  variant="outline" 
+                                  onClick={() => navigate(`/analysis/${image.analysisResult?.id}`)}
+                                >
+                                  View Detailed Analysis
+                                </Button>
+                              </div>
+                            ) : (
+                              <p className="text-sm text-muted-foreground">
+                                No analysis results available.
+                              </p>
+                            )}
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  </TabsContent>
+                  
+                  <TabsContent value="summary">
+                    <div className="space-y-4">
+                      <Card>
+                        <CardContent className="p-4">
+                          <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-lg font-medium">Task Summary</h3>
+                            <Badge className={getStatusColor(task.status)}>
+                              {task.status}
+                            </Badge>
+                          </div>
+                          
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <p className="text-sm text-muted-foreground mb-1">Task Type</p>
+                              <p className="font-medium">{task.type === 'multi-lot' ? 'Multi-Lot Analysis' : 'Single-Lot Analysis'}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-muted-foreground mb-1">Created</p>
+                              <p className="font-medium">{new Date(task.createdAt).toLocaleString()}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-muted-foreground mb-1">Completed</p>
+                              <p className="font-medium">{task.completedAt ? new Date(task.completedAt).toLocaleString() : 'N/A'}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-muted-foreground mb-1">Images</p>
+                              <p className="font-medium">{task.images.length}</p>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                      
+                      <div className="flex justify-end">
+                        <Button
+                          onClick={handleGenerateReport}
+                          disabled={isGeneratingReport}
+                        >
+                          {isGeneratingReport ? 'Generating...' : 'Generate PDF Report'}
+                        </Button>
                       </div>
-                      <CardContent className="p-4">
-                        <h4 className="font-medium mb-2">
-                          {image.description || "Image Analysis"}
-                        </h4>
-                        <p className="text-sm text-muted-foreground">
-                          Analysis results would appear here in a real application.
-                        </p>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
+                    </div>
+                  </TabsContent>
+                </Tabs>
               </CardContent>
             </Card>
           )}
