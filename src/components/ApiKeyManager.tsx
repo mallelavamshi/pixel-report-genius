@@ -12,14 +12,17 @@ type ApiKey = {
   anthropic: string;
 };
 
+// Default API keys for testing
+const DEFAULT_API_KEYS: ApiKey = {
+  imgbb: '18759606ef63e6db0fc6bd73afc2b1c7',
+  searchApi: 'KLyAAKTXMr1ry36GSbpp1u7M',
+  anthropic: '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'
+};
+
 export const useApiKeys = () => {
   const [apiKeys, setApiKeys] = useState<ApiKey>(() => {
     const savedKeys = localStorage.getItem('apiKeys');
-    return savedKeys ? JSON.parse(savedKeys) : {
-      imgbb: '',
-      searchApi: '',
-      anthropic: ''
-    };
+    return savedKeys ? JSON.parse(savedKeys) : DEFAULT_API_KEYS;
   });
 
   useEffect(() => {
