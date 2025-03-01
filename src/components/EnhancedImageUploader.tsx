@@ -1,10 +1,9 @@
-
 import { useState, useRef } from 'react';
 import { Camera, Upload, X, Image as ImageIcon, Trash2, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
-import { toast } from "sonner";
+import { toast as sonnerToast } from "sonner";
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
@@ -72,7 +71,6 @@ const EnhancedImageUploader = ({ taskId, onUploadComplete }: EnhancedImageUpload
   };
 
   const handleFile = (file: File) => {
-    // Check if file is an image
     if (!file.type.match('image.*')) {
       toast({
         title: "Invalid file type",
@@ -82,7 +80,6 @@ const EnhancedImageUploader = ({ taskId, onUploadComplete }: EnhancedImageUpload
       return;
     }
 
-    // Check file size (limit to 10MB)
     if (file.size > 10 * 1024 * 1024) {
       toast({
         title: "File too large",
@@ -112,7 +109,6 @@ const EnhancedImageUploader = ({ taskId, onUploadComplete }: EnhancedImageUpload
     setIsUploading(true);
     setProgress(0);
     
-    // Simulate upload progress
     const interval = setInterval(() => {
       setProgress(prev => {
         if (prev >= 95) {
@@ -124,7 +120,6 @@ const EnhancedImageUploader = ({ taskId, onUploadComplete }: EnhancedImageUpload
     }, 100);
 
     try {
-      // After "upload" is complete, update the task with the new image
       setTimeout(() => {
         clearInterval(interval);
         setProgress(100);
@@ -138,10 +133,8 @@ const EnhancedImageUploader = ({ taskId, onUploadComplete }: EnhancedImageUpload
         
         addImageToTask(taskId, newImage);
         
-        // Success toast
-        toast.success("Image uploaded successfully");
+        sonnerToast.success("Image uploaded successfully");
         
-        // Reset the uploader
         setTimeout(() => {
           setPreview(null);
           setProgress(0);
@@ -365,7 +358,7 @@ export const ImagePreviewList = ({ taskId, onDelete }: { taskId: string, onDelet
       if (onDelete) {
         onDelete(imageId);
       }
-      toast.success("Image removed");
+      sonnerToast.success("Image removed");
     }
   };
 
@@ -414,7 +407,6 @@ export const ImagePreviewList = ({ taskId, onDelete }: { taskId: string, onDelet
   );
 };
 
-// Component for the description dialog
 export const DescriptionDialog = ({ 
   isOpen, 
   onClose, 
