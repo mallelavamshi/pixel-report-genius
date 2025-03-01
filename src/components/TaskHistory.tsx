@@ -4,7 +4,7 @@ import { useAnalysis } from '@/contexts/AnalysisContext';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowRight, Grid, Image as ImageIcon, Clock, Search } from 'lucide-react';
+import { ArrowRight, FileIcon, ImageIcon, Clock, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useNavigate } from 'react-router-dom';
 
@@ -87,7 +87,7 @@ const TaskHistory = ({ tasks, type = 'all' }: TaskHistoryProps) => {
                 <div className="flex items-start space-x-4">
                   <div className="bg-accent/50 p-2 rounded-full">
                     {task.type === 'multi-lot' ? (
-                      <Grid className="h-5 w-5" />
+                      <FileIcon className="h-5 w-5" />
                     ) : (
                       <ImageIcon className="h-5 w-5" />
                     )}
