@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import NavBar from '@/components/NavBar';
@@ -191,12 +190,12 @@ const Task = () => {
       
       // Convert blob URL to file if needed
       let imageFile: File;
-      if (imageUrl.startsWith('blob:')) {
-        console.log("Converting blob URL to file");
+      if (imageUrl.startsWith('blob:') || imageUrl.startsWith('data:')) {
+        console.log("Converting blob/data URL to file");
         imageFile = await urlToFile(imageUrl, 'image.jpg');
       } else {
         // If we already have a data URL, convert it to a file
-        console.log("Converting data URL to file");
+        console.log("Converting URL to file");
         const response = await fetch(imageUrl);
         const blob = await response.blob();
         imageFile = new File([blob], 'image.jpg', { type: blob.type });

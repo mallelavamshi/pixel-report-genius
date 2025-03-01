@@ -9,6 +9,8 @@ export type SearchResult = {
   price?: string;
   currency?: string;
   extractedPrice?: number;
+  link?: string;
+  thumbnail?: string;
 };
 
 /**
@@ -38,7 +40,7 @@ export const searchSimilarProducts = async (
     
     const params = new URLSearchParams({
       engine: 'google_lens',
-      search_type: 'all',
+      search_type: 'products',
       url: imageUrl,
       q: queryText || "eBay", // Default to eBay if queryText is empty
       api_key: apiKey
@@ -69,13 +71,15 @@ export const searchSimilarProducts = async (
       return [];
     }
     
-    // Transform to our format
-    return data.visual_matches.map((match: any) => ({
+    // Transform to our format and limit to first 15 results
+    return data.visual_matches.slice(0, 15).map((match: any) => ({
       title: match.title || 'Unknown Product',
       source: match.source || match.link || 'Unknown Source',
       price: match.price || undefined,
-      currency: match.price_currency || match.currency || undefined,
+      currency: match.currency || undefined,
       extractedPrice: match.extracted_price || undefined,
+      link: match.link || undefined,
+      thumbnail: match.thumbnail || match.image?.link || undefined,
     }));
   } catch (error) {
     console.error('Error searching with SearchAPI:', error);
