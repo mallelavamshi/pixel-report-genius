@@ -7,7 +7,7 @@
 if (!AbortSignal.timeout) {
   AbortSignal.timeout = function timeout(ms: number) {
     const controller = new AbortController();
-    setTimeout(() => controller.abort(), ms);
+    setTimeout(() => controller.abort(new Error('Timeout')), ms);
     return controller.signal;
   };
 }
@@ -48,7 +48,7 @@ export const searchSimilarProducts = async (
       throw new Error("Invalid image URL provided");
     }
     
-    // Define markets to search based on user input or defaults
+    // Define search query based on user input or defaults
     const searchQuery = queryText || "eBay Etsy collectible";
     
     const params = new URLSearchParams({
@@ -62,20 +62,21 @@ export const searchSimilarProducts = async (
     const apiUrl = `https://www.searchapi.io/api/v1/search?${params.toString()}`;
     console.log("Sending request to SearchAPI:", apiUrl.replace(apiKey, "API_KEY_HIDDEN"));
     
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(new Error('SearchAPI request timed out')), 30000);
-
+    // Use longer timeout for SearchAPI (45 seconds)
+    const timeoutSignal = AbortSignal.timeout(45000);
+    
     try {
       const response = await fetch(apiUrl, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
         },
-        signal: controller.signal
+        signal: timeoutSignal,
+        mode: 'cors',
+        cache: 'no-cache',
+        referrerPolicy: 'no-referrer',
       });
       
-      clearTimeout(timeoutId);
-
       if (!response.ok) {
         const errorText = await response.text();
         console.error(`SearchAPI error (${response.status}):`, errorText);
@@ -83,16 +84,15 @@ export const searchSimilarProducts = async (
       }
 
       const data = await response.json();
-      console.log("SearchAPI response received with status:", response.status);
+      console.log("SearchAPI response received:", data ? "data received" : "no data");
       
-      // Handle case where visual_matches is missing
-      if (!data.visual_matches || !Array.isArray(data.visual_matches)) {
-        console.warn("No visual matches found in SearchAPI response");
+      if (!data || !data.visual_matches || !Array.isArray(data.visual_matches)) {
+        console.warn("No visual matches found in SearchAPI response:", data);
         return [];
       }
       
       // Transform to our format and limit to first 15 results
-      return data.visual_matches.slice(0, 15).map((match: any) => ({
+      const results = data.visual_matches.slice(0, 15).map((match: any) => ({
         title: match.title || 'Unknown Product',
         source: match.source || 'Unknown Source',
         price: match.price || undefined,
@@ -102,10 +102,12 @@ export const searchSimilarProducts = async (
         thumbnail: match.thumbnail || (match.image ? match.image.link : undefined),
         position: match.position || undefined
       }));
+      
+      console.log(`SearchAPI returned ${results.length} results`);
+      return results;
     } catch (error: any) {
-      clearTimeout(timeoutId);
       if (error.name === 'AbortError') {
-        throw new Error('SearchAPI request timed out after 30 seconds');
+        throw new Error('SearchAPI request timed out after 45 seconds');
       }
       throw error;
     }

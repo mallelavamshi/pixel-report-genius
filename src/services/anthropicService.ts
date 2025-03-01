@@ -9,7 +9,7 @@ import { SearchResult } from './searchApiService';
 if (!AbortSignal.timeout) {
   AbortSignal.timeout = function timeout(ms: number) {
     const controller = new AbortController();
-    setTimeout(() => controller.abort(), ms);
+    setTimeout(() => controller.abort(new Error('Timeout')), ms);
     return controller.signal;
   };
 }
@@ -62,8 +62,8 @@ Your analysis should be detailed but concise. Include any distinctive features, 
     
     console.log("Sending request to Anthropic API");
     
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(new Error('Anthropic API request timed out')), 60000);
+    // Use a longer timeout for Claude (90 seconds)
+    const timeoutSignal = AbortSignal.timeout(90000);
     
     try {
       const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -95,15 +95,24 @@ Your analysis should be detailed but concise. Include any distinctive features, 
             }
           ]
         }),
-        signal: controller.signal
+        signal: timeoutSignal,
+        mode: 'cors',
+        cache: 'no-cache',
+        referrerPolicy: 'no-referrer',
       });
 
-      clearTimeout(timeoutId);
-
       if (!response.ok) {
-        const errorData = await response.text();
-        console.error(`Anthropic API error (${response.status}):`, errorData);
-        throw new Error(`Anthropic API error: ${response.status} - ${errorData}`);
+        let errorMessage = `Anthropic API error: ${response.status}`;
+        try {
+          const errorData = await response.json();
+          console.error(`Anthropic API error (${response.status}):`, errorData);
+          errorMessage += ` - ${JSON.stringify(errorData)}`;
+        } catch (e) {
+          const errorText = await response.text();
+          console.error(`Anthropic API error (${response.status}):`, errorText);
+          errorMessage += ` - ${errorText}`;
+        }
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
@@ -116,9 +125,8 @@ Your analysis should be detailed but concise. Include any distinctive features, 
       
       return data.content[0].text;
     } catch (error: any) {
-      clearTimeout(timeoutId);
       if (error.name === 'AbortError') {
-        throw new Error('Anthropic API request timed out after 60 seconds');
+        throw new Error('Anthropic API request timed out after 90 seconds');
       }
       throw error;
     }
