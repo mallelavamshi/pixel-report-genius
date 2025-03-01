@@ -1,3 +1,4 @@
+
 /**
  * Service for imgBB API integration
  */
@@ -9,6 +10,9 @@
  */
 const isValidUrl = (url: string): boolean => {
   try {
+    if (url.startsWith('blob:') || url.startsWith('data:')) {
+      return true;
+    }
     new URL(url);
     return true;
   } catch (e) {
@@ -41,7 +45,7 @@ export const uploadImageToImgBB = async (imageFile: File, apiKey: string): Promi
     const formData = new FormData();
     formData.append('image', imageFile);
     formData.append('key', apiKey);
-    formData.append('expiration', '600'); // 10 minutes expiration as per requirements
+    formData.append('expiration', '0'); // No expiration to ensure URLs remain valid
     
     console.log("Sending request to ImgBB API");
     
@@ -53,9 +57,7 @@ export const uploadImageToImgBB = async (imageFile: File, apiKey: string): Promi
       const options: RequestInit = {
         method: 'POST',
         body: formData,
-        mode: 'cors',
         cache: 'no-cache',
-        referrerPolicy: 'no-referrer',
       };
       
       // If AbortSignal.timeout is available, use it
@@ -119,7 +121,22 @@ export const uploadImageToImgBB = async (imageFile: File, apiKey: string): Promi
  */
 export const urlToFile = async (url: string, filename: string = 'image.jpg'): Promise<File> => {
   try {
-    if (!isValidUrl(url) && !url.startsWith('data:')) {
+    // Handle data URL input
+    if (url.startsWith('data:')) {
+      const res = await fetch(url);
+      const blob = await res.blob();
+      return new File([blob], filename, { type: blob.type });
+    }
+    
+    // Handle blob URL input
+    if (url.startsWith('blob:')) {
+      const res = await fetch(url);
+      const blob = await res.blob();
+      return new File([blob], filename, { type: blob.type });
+    }
+    
+    // Handle regular URL
+    if (!isValidUrl(url)) {
       console.error('Invalid URL provided to urlToFile:', url);
       throw new Error('Invalid URL provided');
     }

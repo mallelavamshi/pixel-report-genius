@@ -66,39 +66,43 @@ Your analysis should be detailed but concise. Include any distinctive features, 
     const timeoutSignal = AbortSignal.timeout(90000);
     
     try {
+      // Construct request payload
+      const payload = {
+        model: 'claude-3-5-sonnet-20241022',
+        max_tokens: 4000,
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: prompt
+              },
+              {
+                type: 'image',
+                source: {
+                  type: 'url',
+                  url: imageUrl
+                }
+              }
+            ]
+          }
+        ]
+      };
+      
+      console.log("Claude API payload:", JSON.stringify(payload).replace(imageUrl, "IMAGE_URL_HIDDEN"));
+      
       const response = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'anthropic-version': '2023-06-01',
           'x-api-key': apiKey,
+          'Accept': 'application/json',
         },
-        body: JSON.stringify({
-          model: 'claude-3-5-sonnet-20241022',
-          max_tokens: 4000,
-          messages: [
-            {
-              role: 'user',
-              content: [
-                {
-                  type: 'text',
-                  text: prompt
-                },
-                {
-                  type: 'image',
-                  source: {
-                    type: 'url',
-                    url: imageUrl
-                  }
-                }
-              ]
-            }
-          ]
-        }),
+        body: JSON.stringify(payload),
         signal: timeoutSignal,
-        mode: 'cors',
         cache: 'no-cache',
-        referrerPolicy: 'no-referrer',
       });
 
       if (!response.ok) {

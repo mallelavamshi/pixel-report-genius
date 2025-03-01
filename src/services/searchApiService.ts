@@ -51,15 +51,22 @@ export const searchSimilarProducts = async (
     // Define search query based on user input or defaults
     const searchQuery = queryText || "eBay Etsy collectible";
     
-    const params = new URLSearchParams({
+    // Construct the API URL with query parameters
+    const params = {
       engine: 'google_lens',
       search_type: 'products',
       url: imageUrl,
       q: searchQuery, 
       api_key: apiKey
-    });
-
-    const apiUrl = `https://www.searchapi.io/api/v1/search?${params.toString()}`;
+    };
+    
+    // Don't use URLSearchParams as it may not encode things properly
+    const queryString = Object.entries(params)
+      .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
+      .join('&');
+      
+    const apiUrl = `https://www.searchapi.io/api/v1/search?${queryString}`;
+    
     console.log("Sending request to SearchAPI:", apiUrl.replace(apiKey, "API_KEY_HIDDEN"));
     
     // Use longer timeout for SearchAPI (45 seconds)
@@ -70,11 +77,10 @@ export const searchSimilarProducts = async (
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
         },
         signal: timeoutSignal,
-        mode: 'cors',
         cache: 'no-cache',
-        referrerPolicy: 'no-referrer',
       });
       
       if (!response.ok) {
