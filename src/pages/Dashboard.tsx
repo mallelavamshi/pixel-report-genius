@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { FileIcon, ImageIcon, Plus } from 'lucide-react';
-import { useAnalysis } from '@/contexts/AnalysisContext';
+import { useAnalysis, TaskStatus } from '@/contexts/AnalysisContext';
 import NavBar from '@/components/NavBar';
 import TaskTypeSelection from '@/components/TaskTypeSelection';
 import TaskHistory from '@/components/TaskHistory';
@@ -40,7 +40,7 @@ const Dashboard = () => {
       name: taskName,
       description: taskDescription,
       type: taskType,
-      status: 'pending',
+      status: 'pending' as TaskStatus,
       createdAt: new Date(),
       images: [],
     };
