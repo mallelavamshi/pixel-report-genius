@@ -1,249 +1,103 @@
 
 import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
-import { v4 as uuidv4 } from 'uuid';
-
-export type TaskType = 'multi-lot' | 'single-lot';
-
-export type TaskStatus = 'pending' | 'processing' | 'completed' | 'failed';
-
-export type TaskTier = 'free' | 'basic' | 'premium';
-
-export type Task = {
-  id: string;
-  name: string;
-  title: string; 
-  description?: string;
-  type: TaskType;
-  status: TaskStatus;
-  tier?: TaskTier;
-  createdAt: Date;
-  created: Date;
-  completedAt?: Date;
-  images: TaskImage[];
-  imageUrl?: string;
-  maxImages?: number;
-  userId?: string;
-  inQueue?: boolean;
-};
-
-export type TaskImage = {
-  id: string;
-  imageUrl: string;
-  description?: string;
-  uploadedAt: Date;
-  analysisResult?: AnalysisResult;
-};
-
-export type AnalysisResult = {
-  id: string;
-  imageUrl: string;
-  date: Date;
-  objects: Array<{
-    name: string;
-    confidence: number;
-    boundingBox: {
-      x: number;
-      y: number;
-      width: number;
-      height: number;
-    }
-  }>;
-  colors: Array<{
-    color: string;
-    percentage: number;
-  }>;
-  tags: string[];
-  description: string;
-  searchResults?: Array<{
-    title: string;
-    source: string;
-    price?: string;
-    currency?: string;
-    extractedPrice?: number;
-  }>;
-  claudeAnalysis?: string;
-};
-
-type AnalysisContextType = {
-  analyses: AnalysisResult[];
-  currentAnalysis: AnalysisResult | null;
-  tasks: Task[];
-  currentTask: Task | null;
-  addAnalysis: (analysis: AnalysisResult) => void;
-  getAnalysis: (id: string) => AnalysisResult | undefined;
-  setCurrentAnalysis: (analysis: AnalysisResult | null) => void;
-  isLoading: boolean;
-  setIsLoading: (loading: boolean) => void;
-  addTask: (task: Task) => void;
-  updateTask: (id: string, updates: Partial<Task>) => void;
-  setCurrentTask: (task: Task | null) => void;
-  addImageToTask: (taskId: string, image: TaskImage) => void;
-  removeImageFromTask: (taskId: string, imageId: string) => void;
-  getTask: (id: string) => Task | undefined;
-  createTask: (type?: TaskType) => Task;
-  getUserTasks: (userId: string) => Task[];
-  getUserTier: () => TaskTier;
-};
+import { 
+  Task, 
+  TaskImage, 
+  AnalysisResult, 
+  AnalysisContextType,
+  TaskType
+} from './types';
+import { 
+  loadFromLocalStorage, 
+  saveToLocalStorage 
+} from './utils';
+import {
+  createTask,
+  getUserTier,
+  getUserTasks,
+  getTask,
+  addTask as addTaskToList,
+  updateTask as updateTaskInList,
+  addImageToTask as addImageToTaskInList,
+  removeImageFromTask as removeImageFromTaskInList
+} from './taskService';
+import {
+  addAnalysis as addAnalysisToList,
+  getAnalysis as getAnalysisFromLists
+} from './analysisService';
 
 const AnalysisContext = createContext<AnalysisContextType | undefined>(undefined);
 
-const parseWithDates = (json: string) => {
-  return JSON.parse(json, (key, value) => {
-    if (typeof value === 'string' && 
-        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.*Z$/.test(value)) {
-      return new Date(value);
-    }
-    return value;
-  });
-};
-
 export const AnalysisProvider = ({ children }: { children: ReactNode }) => {
-  const initialAnalyses = () => {
-    try {
-      const saved = localStorage.getItem('analyses');
-      return saved ? parseWithDates(saved) : [];
-    } catch (e) {
-      console.error('Error loading analyses from localStorage:', e);
-      return [];
-    }
-  };
-
-  const initialTasks = () => {
-    try {
-      const saved = localStorage.getItem('tasks');
-      return saved ? parseWithDates(saved) : [];
-    } catch (e) {
-      console.error('Error loading tasks from localStorage:', e);
-      return [];
-    }
-  };
-
-  const [analyses, setAnalyses] = useState<AnalysisResult[]>(initialAnalyses);
+  const [analyses, setAnalyses] = useState<AnalysisResult[]>(
+    loadFromLocalStorage('analyses', [])
+  );
   const [currentAnalysis, setCurrentAnalysis] = useState<AnalysisResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [tasks, setTasks] = useState<Task[]>(initialTasks);
+  const [tasks, setTasks] = useState<Task[]>(
+    loadFromLocalStorage('tasks', [])
+  );
   const [currentTask, setCurrentTask] = useState<Task | null>(null);
 
   useEffect(() => {
-    try {
-      localStorage.setItem('analyses', JSON.stringify(analyses));
-    } catch (e) {
-      console.error('Error saving analyses to localStorage:', e);
-    }
+    saveToLocalStorage('analyses', analyses);
   }, [analyses]);
 
   useEffect(() => {
-    try {
-      localStorage.setItem('tasks', JSON.stringify(tasks));
-    } catch (e) {
-      console.error('Error saving tasks to localStorage:', e);
-    }
+    saveToLocalStorage('tasks', tasks);
   }, [tasks]);
 
   const addAnalysis = (analysis: AnalysisResult) => {
-    if (!analyses.some(a => a.id === analysis.id)) {
-      setAnalyses(prev => [...prev, analysis]);
-    }
+    setAnalyses(prev => addAnalysisToList(prev, analysis));
   };
 
-  const getAnalysis = (id: string) => {
-    const directAnalysis = analyses.find(analysis => analysis.id === id);
-    if (directAnalysis) return directAnalysis;
-    
-    let result: AnalysisResult | undefined;
-    
-    tasks.some(task => {
-      const foundImage = task.images.find(img => 
-        img.analysisResult && img.analysisResult.id === id
-      );
+  const getAnalysisById = (id: string) => {
+    return getAnalysisFromLists(analyses, tasks, id);
+  };
+
+  const addNewTask = (task: Task) => {
+    setTasks(prev => addTaskToList(prev, task));
+  };
+
+  const updateTask = (id: string, updates: Partial<Task>) => {
+    setTasks(prev => {
+      const updatedTasks = updateTaskInList(prev, id, updates);
       
-      if (foundImage && foundImage.analysisResult) {
-        result = foundImage.analysisResult;
-        return true;
+      // Check if there are any new analysis results to add
+      const updatedTask = updatedTasks.find(task => task.id === id);
+      if (updatedTask) {
+        updatedTask.images.forEach(image => {
+          if (image.analysisResult) {
+            addAnalysis(image.analysisResult);
+          }
+        });
       }
       
-      return false;
+      return updatedTasks;
     });
-    
-    return result;
   };
 
-  const createTask = (type: TaskType = 'single-lot') => {
-    const now = new Date();
-    const taskName = type === 'single-lot' ? 'Single Image Analysis' : 'Multi-Image Analysis';
-    
-    const newTask: Task = {
-      id: uuidv4(),
-      name: taskName,
-      title: taskName,
-      description: '',
-      type: type,
-      status: 'pending',
-      tier: getUserTier(),
-      createdAt: now,
-      created: now,
-      images: [],
-      maxImages: type === 'multi-lot' ? 10 : 1,
-      userId: localStorage.getItem('userRole') || 'user',
-      inQueue: false
-    };
-    
-    addTask(newTask);
+  const addImageToTask = (taskId: string, image: TaskImage) => {
+    setTasks(prev => addImageToTaskInList(prev, taskId, image));
+  };
+
+  const removeImageFromTask = (taskId: string, imageId: string) => {
+    setTasks(prev => removeImageFromTaskInList(prev, taskId, imageId));
+  };
+
+  const getTaskById = (id: string) => {
+    return getTask(tasks, id);
+  };
+
+  const createNewTask = (type: TaskType = 'single-lot') => {
+    const newTask = createTask(type, getUserTier());
+    addNewTask(newTask);
     console.log("Creating new task:", newTask);
     return newTask;
   };
 
-  const addTask = (task: Task) => {
-    setTasks(prev => [...prev, task]);
-  };
-
-  const updateTask = (id: string, updates: Partial<Task>) => {
-    setTasks(prev => prev.map(task => {
-      if (task.id === id) {
-        const updatedTask = { ...task, ...updates };
-        
-        if (updatedTask.images) {
-          updatedTask.images.forEach(image => {
-            if (image.analysisResult) {
-              addAnalysis(image.analysisResult);
-            }
-          });
-        }
-        
-        return updatedTask;
-      }
-      return task;
-    }));
-  };
-
-  const addImageToTask = (taskId: string, image: TaskImage) => {
-    setTasks(prev => prev.map(task => 
-      task.id === taskId 
-        ? { ...task, images: [...task.images, image] }
-        : task
-    ));
-  };
-
-  const removeImageFromTask = (taskId: string, imageId: string) => {
-    setTasks(prev => prev.map(task => 
-      task.id === taskId 
-        ? { ...task, images: task.images.filter(img => img.id !== imageId) }
-        : task
-    ));
-  };
-
-  const getTask = (id: string) => {
-    return tasks.find(task => task.id === id);
-  };
-
-  const getUserTasks = (userId: string) => {
-    return tasks.filter(task => task.userId === userId);
-  };
-
-  const getUserTier = (): TaskTier => {
-    // This would typically come from an authenticated user object
-    // For demo purposes, we'll just return a hardcoded value
-    return 'basic';
+  const getUserTasksList = (userId: string) => {
+    return getUserTasks(tasks, userId);
   };
 
   return (
@@ -252,20 +106,20 @@ export const AnalysisProvider = ({ children }: { children: ReactNode }) => {
         analyses, 
         currentAnalysis, 
         addAnalysis, 
-        getAnalysis, 
+        getAnalysis: getAnalysisById, 
         setCurrentAnalysis,
         isLoading,
         setIsLoading,
         tasks,
         currentTask,
-        addTask,
+        addTask: addNewTask,
         updateTask,
         setCurrentTask,
         addImageToTask,
         removeImageFromTask,
-        getTask,
-        createTask,
-        getUserTasks,
+        getTask: getTaskById,
+        createTask: createNewTask,
+        getUserTasks: getUserTasksList,
         getUserTier
       }}
     >
@@ -281,3 +135,12 @@ export const useAnalysis = () => {
   }
   return context;
 };
+
+export type { 
+  Task, 
+  TaskImage, 
+  AnalysisResult, 
+  TaskType, 
+  TaskStatus, 
+  TaskTier 
+} from './types';
