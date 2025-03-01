@@ -5,28 +5,50 @@ import NavBar from '@/components/NavBar';
 import { useAnalysis } from '@/contexts/AnalysisContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { FileIcon, Image, Upload, FileText, ArrowLeft, Download, Zap } from 'lucide-react';
+import { FileIcon, Image, Upload, FileText, ArrowLeft, Download, Zap, Settings, FileSpreadsheet } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import EnhancedImageUploader, { ImagePreviewList } from '@/components/EnhancedImageUploader';
 import { toast } from "sonner";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { generatePDF, downloadPDF } from '@/lib/pdfGenerator';
+import { generatePDF, downloadPDF, generateTaskPDF } from '@/lib/pdfGenerator';
+import { generateExcel, downloadExcel, generateTaskExcel } from '@/lib/excelGenerator';
+import ApiKeyManager, { useApiKeys } from '@/components/ApiKeyManager';
+import { uploadImageToImgBB } from '@/services/imgbbService';
+import { searchSimilarProducts } from '@/services/searchApiService';
+import { analyzeImageWithClaude } from '@/services/anthropicService';
+import { v4 as uuidv4 } from 'uuid';
 
 const Task = () => {
   const { id } = useParams<{ id: string }>();
   const { getTask, updateTask } = useAnalysis();
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [reportUrl, setReportUrl] = useState<string | null>(null);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [excelUrl, setExcelUrl] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("images");
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+  const [isApiKeysDialogOpen, setIsApiKeysDialogOpen] = useState(false);
+  const { apiKeys } = useApiKeys();
 
   const task = id ? getTask(id) : undefined;
+
+  // Check if API keys are configured
+  const areApiKeysConfigured = () => {
+    return !!(apiKeys.imgbb && apiKeys.searchApi && apiKeys.anthropic);
+  };
 
   useEffect(() => {
     if (!task) {
       toast.error("Task not found");
       navigate('/dashboard');
+    } else if (!areApiKeysConfigured() && task.status === 'pending' && task.images.length > 0) {
+      toast("Please configure your API keys before analysis", {
+        description: "Click the settings button to enter your API keys.",
+        action: {
+          label: "Configure",
+          onClick: () => setIsApiKeysDialogOpen(true)
+        }
+      });
     }
   }, [task, navigate]);
 
@@ -40,64 +62,108 @@ const Task = () => {
     toast.success(`Image added to ${task.name}. You can add more images.`);
   };
 
-  const handleSubmitTask = () => {
+  const processImage = async (imageFile: File, imageDescription?: string) => {
+    try {
+      // 1. Upload to ImgBB
+      const imageUrl = await uploadImageToImgBB(imageFile, apiKeys.imgbb);
+      if (!imageUrl) throw new Error("Failed to upload image to ImgBB");
+      
+      // 2. Search similar products with SearchAPI
+      const searchResults = await searchSimilarProducts(imageUrl, apiKeys.searchApi);
+      
+      // 3. Analyze with Claude
+      const claudeAnalysis = await analyzeImageWithClaude(imageUrl, searchResults, apiKeys.anthropic);
+      
+      // 4. Return the analysis result
+      return {
+        id: uuidv4(),
+        imageUrl,
+        date: new Date(),
+        objects: [
+          { 
+            name: "Processed Object", 
+            confidence: 0.95, 
+            boundingBox: { x: 10, y: 10, width: 100, height: 100 } 
+          }
+        ],
+        colors: [
+          { color: "#ff5733", percentage: 35 },
+          { color: "#33ff57", percentage: 25 },
+          { color: "#3357ff", percentage: 40 }
+        ],
+        tags: ["processed", "api-generated"],
+        description: imageDescription || "Processed image description",
+        searchResults,
+        claudeAnalysis
+      };
+    } catch (error) {
+      console.error("Error processing image:", error);
+      throw error;
+    }
+  };
+
+  const handleSubmitTask = async () => {
     if (task.images.length === 0) {
       toast.error("Please upload at least one image");
       return;
     }
 
+    if (!areApiKeysConfigured()) {
+      toast.error("Please configure your API keys first");
+      setIsApiKeysDialogOpen(true);
+      return;
+    }
+
     setIsSubmitting(true);
     
-    // Simulate processing
+    // Update task status to processing
     updateTask(task.id, { status: 'processing' });
     
-    // In a real app, this would be an API call to start the task processing
-    setTimeout(() => {
-      // Simulate creating analysis results for each image
-      const updatedImages = task.images.map(image => {
-        return {
-          ...image,
-          analysisResult: {
-            id: Math.random().toString(36).substring(2, 15),
-            imageUrl: image.imageUrl,
-            date: new Date(),
-            objects: [
-              { 
-                name: "Object 1", 
-                confidence: 0.95, 
-                boundingBox: { x: 10, y: 10, width: 100, height: 100 } 
-              },
-              { 
-                name: "Object 2", 
-                confidence: 0.87, 
-                boundingBox: { x: 150, y: 150, width: 80, height: 80 } 
-              }
-            ],
-            colors: [
-              { color: "#ff5733", percentage: 35 },
-              { color: "#33ff57", percentage: 25 },
-              { color: "#3357ff", percentage: 40 }
-            ],
-            tags: ["tag1", "tag2", "tag3"],
-            description: "AI-generated description of the image content.",
-          }
-        };
-      });
+    try {
+      // Process each image
+      const updatedImages = [...task.images];
       
+      for (let i = 0; i < updatedImages.length; i++) {
+        const image = updatedImages[i];
+        
+        // Skip images that already have analysis results
+        if (image.analysisResult) continue;
+        
+        // Convert the image URL to a File object
+        const response = await fetch(image.imageUrl);
+        const blob = await response.blob();
+        const file = new File([blob], `image-${i}.jpg`, { type: 'image/jpeg' });
+        
+        // Process the image
+        const analysisResult = await processImage(file, image.description);
+        
+        // Update the image with the analysis result
+        updatedImages[i] = {
+          ...image,
+          analysisResult
+        };
+      }
+      
+      // Update the task with the new images and set status to completed
       updateTask(task.id, { 
         status: 'completed',
         completedAt: new Date(),
         images: updatedImages
       });
       
-      setIsSubmitting(false);
       toast.success("Task completed successfully");
-    }, 3000);
+    } catch (error) {
+      console.error("Error processing task:", error);
+      toast.error("Failed to process task");
+      updateTask(task.id, { status: 'failed' });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleGenerateReport = async () => {
+  const handleGenerateReports = async () => {
     if (!task || task.images.length === 0) {
-      toast.error("No images to generate report from");
+      toast.error("No images to generate reports from");
       return;
     }
     
@@ -114,24 +180,42 @@ const Task = () => {
         return;
       }
       
+      // Generate PDF
       const pdfUrl = await generatePDF(firstImageWithAnalysis.analysisResult);
-      setReportUrl(pdfUrl);
-      toast.success("Report generated successfully");
+      setPdfUrl(pdfUrl);
+      
+      // Generate Excel
+      const excelUrl = generateExcel(firstImageWithAnalysis.analysisResult);
+      setExcelUrl(excelUrl);
+      
+      toast.success("Reports generated successfully");
     } catch (error) {
-      console.error("Error generating PDF:", error);
-      toast.error("Failed to generate report");
+      console.error("Error generating reports:", error);
+      toast.error("Failed to generate reports");
     } finally {
       setIsGeneratingReport(false);
     }
   };
 
-  const handleDownloadReport = () => {
-    if (reportUrl) {
-      downloadPDF(reportUrl, `${task.name.replace(/\s+/g, '-').toLowerCase()}-report.pdf`);
+  const handleDownloadPdf = () => {
+    if (pdfUrl) {
+      downloadPDF(pdfUrl, `${task.name.replace(/\s+/g, '-').toLowerCase()}-report.pdf`);
     } else {
-      handleGenerateReport().then(() => {
-        if (reportUrl) {
-          downloadPDF(reportUrl, `${task.name.replace(/\s+/g, '-').toLowerCase()}-report.pdf`);
+      handleGenerateReports().then(() => {
+        if (pdfUrl) {
+          downloadPDF(pdfUrl, `${task.name.replace(/\s+/g, '-').toLowerCase()}-report.pdf`);
+        }
+      });
+    }
+  };
+
+  const handleDownloadExcel = () => {
+    if (excelUrl) {
+      downloadExcel(excelUrl, `${task.name.replace(/\s+/g, '-').toLowerCase()}-report.xlsx`);
+    } else {
+      handleGenerateReports().then(() => {
+        if (excelUrl) {
+          downloadExcel(excelUrl, `${task.name.replace(/\s+/g, '-').toLowerCase()}-report.xlsx`);
         }
       });
     }
@@ -187,12 +271,27 @@ const Task = () => {
               )}
             </div>
             
-            {task.status === 'completed' && (
-              <Button onClick={handleDownloadReport}>
-                <Download className="h-4 w-4 mr-2" />
-                Download Report
+            <div className="flex gap-2">
+              {task.status === 'completed' && (
+                <>
+                  <Button onClick={handleDownloadPdf}>
+                    <FileText className="h-4 w-4 mr-2" />
+                    PDF
+                  </Button>
+                  <Button onClick={handleDownloadExcel}>
+                    <FileSpreadsheet className="h-4 w-4 mr-2" />
+                    Excel
+                  </Button>
+                </>
+              )}
+              <Button 
+                variant="outline" 
+                onClick={() => setIsApiKeysDialogOpen(true)}
+              >
+                <Settings className="h-4 w-4 mr-2" />
+                API Keys
               </Button>
-            )}
+            </div>
           </div>
           
           {task.status === 'pending' && (
@@ -295,6 +394,12 @@ const Task = () => {
                                   <span className="font-medium">Tags:</span>{' '}
                                   {image.analysisResult.tags.join(', ')}
                                 </p>
+                                {image.analysisResult.searchResults && (
+                                  <p className="text-sm">
+                                    <span className="font-medium">Similar Products:</span>{' '}
+                                    {image.analysisResult.searchResults.length} found
+                                  </p>
+                                )}
                                 <Button 
                                   size="sm" 
                                   variant="outline" 
@@ -346,12 +451,12 @@ const Task = () => {
                         </CardContent>
                       </Card>
                       
-                      <div className="flex justify-end">
+                      <div className="flex justify-end gap-2">
                         <Button
-                          onClick={handleGenerateReport}
+                          onClick={handleGenerateReports}
                           disabled={isGeneratingReport}
                         >
-                          {isGeneratingReport ? 'Generating...' : 'Generate PDF Report'}
+                          {isGeneratingReport ? 'Generating...' : 'Generate Reports'}
                         </Button>
                       </div>
                     </div>
@@ -362,6 +467,11 @@ const Task = () => {
           )}
         </div>
       </main>
+      
+      <ApiKeyManager 
+        open={isApiKeysDialogOpen} 
+        onOpenChange={setIsApiKeysDialogOpen} 
+      />
     </div>
   );
 };
