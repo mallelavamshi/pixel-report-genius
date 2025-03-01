@@ -24,15 +24,30 @@ export const searchSimilarProducts = async (
   queryText: string = "eBay"
 ): Promise<SearchResult[]> => {
   try {
+    console.log("Starting SearchAPI search with:", { imageUrl, queryText });
+    
+    // Check for missing API key
+    if (!apiKey) {
+      throw new Error("SearchAPI key is missing");
+    }
+    
+    // Check for valid URL
+    if (!imageUrl) {
+      throw new Error("Invalid image URL provided");
+    }
+    
     const params = new URLSearchParams({
       engine: 'google_lens',
       search_type: 'all',
       url: imageUrl,
-      q: queryText,
+      q: queryText || "eBay", // Default to eBay if queryText is empty
       api_key: apiKey
     });
 
-    const response = await fetch(`https://www.searchapi.io/api/v1/search?${params.toString()}`, {
+    const apiUrl = `https://www.searchapi.io/api/v1/search?${params.toString()}`;
+    console.log("Sending request to SearchAPI:", apiUrl);
+    
+    const response = await fetch(apiUrl, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -40,17 +55,22 @@ export const searchSimilarProducts = async (
     });
 
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`SearchAPI error (${response.status}):`, errorText);
       throw new Error(`SearchAPI error: ${response.status}`);
     }
 
     const data = await response.json();
     console.log("SearchAPI response:", data);
     
-    // Extract the visual matches from the response
-    const visualMatches = data.visual_matches || [];
+    // Handle case where visual_matches is missing
+    if (!data.visual_matches || !Array.isArray(data.visual_matches)) {
+      console.warn("No visual matches found in SearchAPI response");
+      return [];
+    }
     
     // Transform to our format
-    return visualMatches.map((match: any) => ({
+    return data.visual_matches.map((match: any) => ({
       title: match.title || 'Unknown Product',
       source: match.source || match.link || 'Unknown Source',
       price: match.price || undefined,

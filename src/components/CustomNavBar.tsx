@@ -1,13 +1,14 @@
 
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { ShieldCheck, User, Settings } from 'lucide-react';
+import { ShieldCheck, User, Settings, LayoutDashboard } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import ApiKeyManager from '@/components/ApiKeyManager';
 
 const CustomNavBar = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [isAdmin, setIsAdmin] = useState(() => localStorage.getItem('userRole') === 'admin');
   const [apiKeyManagerOpen, setApiKeyManagerOpen] = useState(false);
 
@@ -31,16 +32,28 @@ const CustomNavBar = () => {
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
           <div className="flex items-center">
-            <Link to="/" className="text-xl font-bold">
+            <Link to="/tasks" className="text-xl font-bold">
               Image Analysis Platform
             </Link>
             
             <nav className="ml-10 space-x-4 hidden md:flex">
-              <Link to="/dashboard" className="text-gray-600 hover:text-gray-900">
+              <Link 
+                to="/tasks" 
+                className={`text-gray-600 hover:text-gray-900 ${location.pathname === '/tasks' ? 'font-medium text-primary' : ''}`}
+              >
+                Tasks
+              </Link>
+              <Link 
+                to="/dashboard" 
+                className={`text-gray-600 hover:text-gray-900 ${location.pathname === '/dashboard' ? 'font-medium text-primary' : ''}`}
+              >
                 Dashboard
               </Link>
               {isAdmin && (
-                <Link to="/admin" className="text-gray-600 hover:text-gray-900">
+                <Link 
+                  to="/admin" 
+                  className={`text-gray-600 hover:text-gray-900 ${location.pathname === '/admin' ? 'font-medium text-primary' : ''}`}
+                >
                   Admin Panel
                 </Link>
               )}
@@ -66,6 +79,17 @@ const CustomNavBar = () => {
               {isAdmin ? <ShieldCheck className="h-4 w-4 mr-2" /> : <User className="h-4 w-4 mr-2" />}
               {isAdmin ? 'Admin Mode' : 'User Mode'}
             </Button>
+            
+            {location.pathname !== '/dashboard' && (
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => navigate('/dashboard')}
+              >
+                <LayoutDashboard className="h-4 w-4 mr-2" />
+                Dashboard
+              </Button>
+            )}
           </div>
         </div>
       </div>

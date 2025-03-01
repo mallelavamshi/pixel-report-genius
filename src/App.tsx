@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
+import Tasks from "./pages/Tasks";
 import Analysis from "./pages/Analysis";
 import Task from "./pages/Task";
 import NotFound from "./pages/NotFound";
@@ -56,6 +57,12 @@ const App = () => {
             <Sonner />
             <Routes>
               <Route path="/" element={<Index />} />
+              <Route 
+                path="/tasks" 
+                element={
+                  isAuthenticated() ? <Tasks /> : <Navigate to="/" replace />
+                } 
+              />
               <Route 
                 path="/dashboard" 
                 element={

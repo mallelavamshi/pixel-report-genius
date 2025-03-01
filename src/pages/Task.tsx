@@ -25,7 +25,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { generatePDF, downloadPDF, generateTaskPDF } from '@/lib/pdfGenerator';
 import { generateExcel, downloadExcel, generateTaskExcel } from '@/lib/excelGenerator';
 import ApiKeyManager, { useApiKeys } from '@/components/ApiKeyManager';
-import { uploadImageToImgBB } from '@/services/imgbbService';
+import { uploadImageToImgBB, urlToFile, resizeImage, blobUrlToDataUrl } from '@/services/imgbbService';
 import { searchSimilarProducts } from '@/services/searchApiService';
 import { analyzeImageWithClaude } from '@/services/anthropicService';
 import { v4 as uuidv4 } from 'uuid';
@@ -40,6 +40,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import CustomNavBar from '@/components/CustomNavBar';
 
 const Task = () => {
   const { id } = useParams<{ id: string }>();
@@ -63,6 +64,7 @@ const Task = () => {
   
   // Results display
   const [showResultsTable, setShowResultsTable] = useState(false);
+  const [processingStatus, setProcessingStatus] = useState<Record<string, string>>({});
 
   const task = id ? getTask(id) : undefined;
 
@@ -183,22 +185,47 @@ const Task = () => {
     toast.success("Image added successfully");
   }, [task, imageFile, imagePreview, updateTask]);
 
-  const processImage = async (imageFile: File, imageDescription?: string) => {
+  const processImage = async (imageUrl: string, imageDescription?: string) => {
     try {
+      console.log("Processing image:", { imageUrl, imageDescription });
+      
+      // Convert blob URL to file if needed
+      let imageFile: File;
+      if (imageUrl.startsWith('blob:')) {
+        console.log("Converting blob URL to file");
+        imageFile = await urlToFile(imageUrl, 'image.jpg');
+      } else {
+        // If we already have a data URL, convert it to a file
+        console.log("Converting data URL to file");
+        const response = await fetch(imageUrl);
+        const blob = await response.blob();
+        imageFile = new File([blob], 'image.jpg', { type: blob.type });
+      }
+      
       // 1. Upload to ImgBB
-      const imageUrl = await uploadImageToImgBB(imageFile, apiKeys.imgbb);
-      if (!imageUrl) throw new Error("Failed to upload image to ImgBB");
+      console.log("Uploading to ImgBB");
+      const imgbbUrl = await uploadImageToImgBB(imageFile, apiKeys.imgbb);
+      if (!imgbbUrl) throw new Error("Failed to upload image to ImgBB");
+      console.log("Image uploaded successfully to ImgBB:", imgbbUrl);
       
       // 2. Search similar products with SearchAPI
-      const searchResults = await searchSimilarProducts(imageUrl, apiKeys.searchApi);
+      console.log("Searching similar products with SearchAPI");
+      const searchResults = await searchSimilarProducts(
+        imgbbUrl, 
+        apiKeys.searchApi, 
+        imageDescription || "eBay"
+      );
+      console.log("Search results:", searchResults);
       
       // 3. Analyze with Claude
-      const claudeAnalysis = await analyzeImageWithClaude(imageUrl, searchResults, apiKeys.anthropic);
+      console.log("Analyzing with Claude");
+      const claudeAnalysis = await analyzeImageWithClaude(imgbbUrl, searchResults, apiKeys.anthropic);
+      console.log("Claude analysis completed");
       
       // 4. Return the analysis result
       return {
         id: uuidv4(),
-        imageUrl,
+        imageUrl: imgbbUrl,
         date: new Date(),
         objects: [
           { 
@@ -217,9 +244,9 @@ const Task = () => {
         searchResults,
         claudeAnalysis
       };
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error processing image:", error);
-      throw error;
+      throw new Error(`Failed to process image: ${error.message}`);
     }
   };
 
@@ -243,29 +270,49 @@ const Task = () => {
     try {
       // Process each image
       const updatedImages = [...task.images];
+      const newProcessingStatus: Record<string, string> = {};
       
       for (let i = 0; i < updatedImages.length; i++) {
         const image = updatedImages[i];
         
         // Skip images that already have analysis results
-        if (image.analysisResult) continue;
+        if (image.analysisResult) {
+          console.log(`Image ${i} already has analysis results, skipping`);
+          continue;
+        }
         
-        // Convert the image URL to a File object
-        const response = await fetch(image.imageUrl);
-        const blob = await response.blob();
-        const file = new File([blob], `image-${i}.jpg`, { type: 'image/jpeg' });
-        
-        // Process the image
-        const analysisResult = await processImage(file, image.description);
-        
-        // Update the image with the analysis result
-        updatedImages[i] = {
-          ...image,
-          analysisResult
-        };
+        try {
+          // Update processing status
+          newProcessingStatus[image.id] = `Processing image ${i+1} of ${updatedImages.length}`;
+          setProcessingStatus(prev => ({ ...prev, [image.id]: newProcessingStatus[image.id] }));
+          
+          // Process the image
+          console.log(`Processing image ${i+1}/${updatedImages.length}:`, image.imageUrl);
+          const analysisResult = await processImage(image.imageUrl, image.description);
+          
+          // Update the image with the analysis result
+          updatedImages[i] = {
+            ...image,
+            analysisResult
+          };
+          
+          // Update processing status
+          newProcessingStatus[image.id] = `Completed`;
+          setProcessingStatus(prev => ({ ...prev, [image.id]: newProcessingStatus[image.id] }));
+          
+          // Update the task immediately after each image is processed
+          updateTask(task.id, { 
+            images: updatedImages
+          });
+          
+        } catch (error: any) {
+          console.error(`Error processing image ${i}:`, error);
+          newProcessingStatus[image.id] = `Failed: ${error.message}`;
+          setProcessingStatus(prev => ({ ...prev, [image.id]: newProcessingStatus[image.id] }));
+        }
       }
       
-      // Update the task with the new images and set status to completed
+      // Final update to the task
       updateTask(task.id, { 
         status: 'completed',
         completedAt: new Date(),
@@ -358,7 +405,7 @@ const Task = () => {
 
   return (
     <div className="min-h-screen pb-16">
-      <NavBar />
+      <CustomNavBar />
       
       <main className="container mx-auto px-4 pt-28">
         <div className="max-w-5xl mx-auto">
@@ -458,6 +505,14 @@ const Task = () => {
                             alt={image.description || "Uploaded image"} 
                             className="w-full h-full object-cover"
                           />
+                          {processingStatus[image.id] && (
+                            <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+                              <div className="text-white text-center p-4">
+                                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-white mx-auto mb-2"></div>
+                                <p className="text-sm">{processingStatus[image.id]}</p>
+                              </div>
+                            </div>
+                          )}
                         </div>
                         <CardContent className="p-3">
                           <p className="text-sm font-medium truncate">
@@ -591,9 +646,9 @@ const Task = () => {
                                       />
                                     </div>
                                   </TableCell>
-                                  <TableCell className="whitespace-pre-wrap max-w-[200px]">
+                                  <TableCell className="whitespace-pre-wrap">
                                     {image.analysisResult?.claudeAnalysis ? (
-                                      <div className="text-sm">
+                                      <div className="text-sm max-w-[600px]">
                                         {image.analysisResult.claudeAnalysis.substring(0, 500)}...
                                       </div>
                                     ) : (
