@@ -34,13 +34,13 @@ const Index = () => {
 
   return (
     <div className="min-h-screen">
-      <NavBar onLogin={handleLogin} onSignUp={handleSignUp} />
+      <NavBar />
       
-      {isHeroVisible && <Hero onGetStarted={handleSignUp} />}
+      {isHeroVisible && <Hero />}
       
       <Features />
       
-      <Pricing onSignUp={handleSignUp} />
+      <Pricing />
       
       <footer className="bg-background py-12 border-t">
         <div className="container mx-auto px-4 text-center">
