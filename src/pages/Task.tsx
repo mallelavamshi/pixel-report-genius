@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import NavBar from '@/components/NavBar';
@@ -194,7 +195,7 @@ const Task = () => {
         console.log("Converting blob/data URL to file");
         imageFile = await urlToFile(imageUrl, 'image.jpg');
       } else {
-        // If we already have a data URL, convert it to a file
+        // If we already have a URL, convert it to a file
         console.log("Converting URL to file");
         const response = await fetch(imageUrl);
         const blob = await response.blob();
@@ -219,7 +220,7 @@ const Task = () => {
       // 3. Analyze with Claude
       console.log("Analyzing with Claude");
       const claudeAnalysis = await analyzeImageWithClaude(imgbbUrl, searchResults, apiKeys.anthropic);
-      console.log("Claude analysis completed");
+      console.log("Claude analysis completed:", claudeAnalysis.substring(0, 100) + "...");
       
       // 4. Return the analysis result
       return {
@@ -262,6 +263,7 @@ const Task = () => {
     }
 
     setIsSubmitting(true);
+    setShowResultsTable(true);
     
     // Update task status to processing
     updateTask(task.id, { status: 'processing' });
@@ -304,6 +306,8 @@ const Task = () => {
             images: updatedImages
           });
           
+          console.log("Updated image with analysis result:", updatedImages[i].analysisResult);
+          
         } catch (error: any) {
           console.error(`Error processing image ${i}:`, error);
           newProcessingStatus[image.id] = `Failed: ${error.message}`;
@@ -324,6 +328,10 @@ const Task = () => {
       if (task.type === 'single-lot' && updatedImages.length > 0) {
         setActiveTab("results");
       }
+      
+      // Generate reports automatically
+      await handleGenerateReports();
+      
     } catch (error) {
       console.error("Error processing task:", error);
       toast.error("Failed to process task");

@@ -29,6 +29,7 @@ export const generatePDF = async (analysis: AnalysisResult): Promise<string> => 
   // Add image
   try {
     // Resize image while maintaining aspect ratio
+    console.log("Adding image to PDF:", analysis.imageUrl);
     const resizedImageUrl = await resizeImage(analysis.imageUrl, 200, 200);
     
     // Add the resized image
@@ -182,7 +183,7 @@ export const generateTaskPDF = async (task: Task): Promise<string> => {
         // Add analysis text next to image
         doc.setFontSize(12);
         const analysisText = image.analysisResult.claudeAnalysis || "No analysis available";
-        const splitAnalysis = doc.splitTextToSize(analysisText, 135); // Max width 200px
+        const splitAnalysis = doc.splitTextToSize(analysisText.substring(0, 800) + "...", 130); // Limit text and width
         
         doc.text(splitAnalysis, 70, currentY);
         

@@ -18,7 +18,7 @@ export const analyzeImageWithClaude = async (
   apiKey: string
 ): Promise<string> => {
   try {
-    console.log("Starting Claude analysis with:", { imageUrl, searchResults });
+    console.log("Starting Claude analysis with:", { imageUrl, searchResults: searchResults.length });
     
     // Ensure the API key is valid
     if (!apiKey) {
