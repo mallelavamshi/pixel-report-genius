@@ -1,5 +1,6 @@
 
 import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 
 export type TaskType = 'multi-lot' | 'single-lot';
 
@@ -8,12 +9,15 @@ export type TaskStatus = 'pending' | 'processing' | 'completed' | 'failed';
 export type Task = {
   id: string;
   name: string;
+  title: string; // Added to match TaskCard expectations
   description?: string;
   type: TaskType;
   status: TaskStatus;
   createdAt: Date;
+  created: Date; // Added to match TaskCard expectations
   completedAt?: Date;
   images: TaskImage[];
+  imageUrl?: string; // Added to match TaskCard expectations
 };
 
 export type TaskImage = {
@@ -70,6 +74,7 @@ type AnalysisContextType = {
   addImageToTask: (taskId: string, image: TaskImage) => void;
   removeImageFromTask: (taskId: string, imageId: string) => void;
   getTask: (id: string) => Task | undefined;
+  createTask: () => Task; // Added createTask function
 };
 
 const AnalysisContext = createContext<AnalysisContextType | undefined>(undefined);
@@ -162,6 +167,25 @@ export const AnalysisProvider = ({ children }: { children: ReactNode }) => {
     return result;
   };
 
+  // Create a new task with default values
+  const createTask = () => {
+    const now = new Date();
+    const newTask: Task = {
+      id: uuidv4(),
+      name: 'New Task',
+      title: 'New Task', // To match TaskCard expectations
+      description: '',
+      type: 'single-lot',
+      status: 'pending',
+      createdAt: now,
+      created: now, // To match TaskCard expectations
+      images: [],
+    };
+    
+    addTask(newTask);
+    return newTask;
+  };
+
   const addTask = (task: Task) => {
     setTasks(prev => [...prev, task]);
   };
@@ -223,7 +247,8 @@ export const AnalysisProvider = ({ children }: { children: ReactNode }) => {
         setCurrentTask,
         addImageToTask,
         removeImageFromTask,
-        getTask
+        getTask,
+        createTask // Add the createTask function to the context
       }}
     >
       {children}

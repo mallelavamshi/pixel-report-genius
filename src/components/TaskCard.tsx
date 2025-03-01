@@ -4,16 +4,7 @@ import { formatDistance } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { ExternalLink } from 'lucide-react';
-
-// Define the Task type to match what's expected from AnalysisContext
-interface Task {
-  id: string;
-  title: string;
-  created: Date;
-  status: 'pending' | 'completed' | 'failed';
-  imageUrl?: string;
-  type?: string;
-}
+import { Task } from '@/contexts/AnalysisContext';
 
 interface TaskCardProps {
   task: Task;
@@ -22,12 +13,15 @@ interface TaskCardProps {
 const TaskCard = ({ task }: TaskCardProps) => {
   const timeAgo = formatDistance(new Date(task.created), new Date(), { addSuffix: true });
   
+  // Use the first image as the task image if available
+  const taskImage = task.images && task.images.length > 0 ? task.images[0].imageUrl : task.imageUrl;
+  
   return (
     <Card className="overflow-hidden hover:shadow-md transition-shadow">
       <CardHeader className="pb-0">
         <div className="flex justify-between items-start">
           <CardTitle className="text-lg font-medium truncate">
-            {task.title || 'Untitled Task'}
+            {task.title || task.name || 'Untitled Task'}
           </CardTitle>
           <Badge variant={task.status === 'completed' ? 'default' : task.status === 'failed' ? 'destructive' : 'secondary'}>
             {task.status}
@@ -36,10 +30,10 @@ const TaskCard = ({ task }: TaskCardProps) => {
       </CardHeader>
       
       <CardContent className="pt-4">
-        {task.imageUrl ? (
+        {taskImage ? (
           <div className="aspect-video bg-muted rounded-md overflow-hidden">
             <img 
-              src={task.imageUrl} 
+              src={taskImage} 
               alt={task.title || 'Task image'} 
               className="w-full h-full object-cover"
             />
