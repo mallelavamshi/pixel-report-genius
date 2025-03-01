@@ -21,8 +21,20 @@ const TaskHistory = ({ tasks, type = 'all' }: TaskHistoryProps) => {
   // Use provided tasks or all tasks from context
   const tasksToDisplay = tasks || allTasks;
   
+  // Filter tasks by status if needed
+  const statusFilteredTasks = type === 'all' 
+    ? tasksToDisplay
+    : tasksToDisplay.filter(task => {
+        if (type === 'pending') {
+          return ['pending', 'processing'].includes(task.status);
+        } else if (type === 'completed') {
+          return task.status === 'completed';
+        }
+        return true;
+      });
+  
   // Sort tasks by creation date, newest first
-  const sortedTasks = [...tasksToDisplay].sort((a, b) => 
+  const sortedTasks = [...statusFilteredTasks].sort((a, b) => 
     new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   );
   

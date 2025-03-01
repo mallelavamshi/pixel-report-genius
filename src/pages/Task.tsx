@@ -5,7 +5,7 @@ import NavBar from '@/components/NavBar';
 import { useAnalysis } from '@/contexts/AnalysisContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Grid, Image, Upload, FileText, ArrowLeft, Download, Zap } from 'lucide-react';
+import { FileIcon, Image, Upload, FileText, ArrowLeft, Download, Zap } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import EnhancedImageUploader, { ImagePreviewList } from '@/components/EnhancedImageUploader';
 import { toast } from "sonner";
@@ -171,7 +171,7 @@ const Task = () => {
             <div>
               <h1 className="text-3xl font-medium flex items-center space-x-3">
                 {task.type === 'multi-lot' ? (
-                  <Grid className="h-6 w-6 mr-2" />
+                  <FileIcon className="h-6 w-6 mr-2" />
                 ) : (
                   <Image className="h-6 w-6 mr-2" />
                 )}
