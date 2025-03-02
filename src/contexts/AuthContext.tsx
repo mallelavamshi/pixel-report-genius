@@ -26,17 +26,38 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchProfile(session.user.id);
+    const initializeAuth = async () => {
+      setLoading(true);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        setSession(session);
+        setUser(session?.user ?? null);
+        
+        if (session?.user) {
+          await fetchProfile(session.user.id);
+        } else {
+          setProfile(null);
+          setIsAdmin(false);
+        }
+      } catch (error) {
+        console.error('Error initializing auth:', error);
+        // Reset auth state on error
+        setSession(null);
+        setUser(null);
+        setProfile(null);
+        setIsAdmin(false);
+      } finally {
+        setLoading(false);
       }
-    });
+    };
+
+    initializeAuth();
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('Auth state changed:', event, session?.user?.email);
+        
         setSession(session);
         setUser(session?.user ?? null);
         
@@ -70,6 +91,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setIsAdmin(data?.role === 'admin');
     } catch (error) {
       console.error('Error fetching profile:', error);
+      // Don't reset profile on fetch error to avoid logout
     }
   };
 
@@ -139,8 +161,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       
+      // Force clear the auth state
+      setSession(null);
+      setUser(null);
+      setProfile(null);
+      setIsAdmin(false);
+      
       toast.success('Logged out successfully');
+      
+      // Force a page reload to clear any cached state
+      window.location.href = '/';
     } catch (error: any) {
+      console.error('Error signing out:', error);
       toast.error(error.message || 'Error signing out');
       throw error;
     }

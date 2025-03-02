@@ -19,14 +19,19 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
     );
   }
 
+  // No user logged in, redirect to login
   if (!user) {
+    console.log('Protected route: No user, redirecting to login');
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
+  // User is logged in but route requires admin and user is not admin
   if (requireAdmin && !isAdmin) {
+    console.log('Protected route: Admin required but user is not admin, redirecting to dashboard');
     return <Navigate to="/dashboard" replace />;
   }
 
+  // User is logged in and meets requirements (either admin not required or user is admin)
   return <>{children}</>;
 };
 

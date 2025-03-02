@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ShieldCheck, User, Settings, LogIn, UserPlus, LogOut } from 'lucide-react';
@@ -16,7 +16,7 @@ const NavBar = () => {
   const handleLogout = async () => {
     try {
       await signOut();
-      navigate('/');
+      // Navigation is handled in the signOut function
     } catch (error) {
       console.error('Logout error:', error);
       toast.error('Failed to log out');
