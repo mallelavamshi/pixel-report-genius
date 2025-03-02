@@ -7,10 +7,11 @@ import { useAnalysis } from '@/contexts/AnalysisContext';
 import { Button } from '@/components/ui/button';
 import { PlusCircle } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { toast } from 'sonner';
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const { tasks } = useAnalysis();
+  const { tasks, deleteTask } = useAnalysis();
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("all");
   
@@ -35,8 +36,18 @@ const Dashboard = () => {
     navigate('/tasks');
   };
 
+  const handleDeleteTask = (taskId: string) => {
+    try {
+      deleteTask(taskId);
+      toast.success("Task deleted successfully");
+    } catch (error) {
+      console.error("Error deleting task:", error);
+      toast.error("Failed to delete task");
+    }
+  };
+
   return (
-    <div className="min-h-screen pb-16 bg-gradient-to-br from-white to-[#F6F6F7]">
+    <div className="min-h-screen pb-16 bg-gradient-to-br from-white to-[#F6F6F7] page-container">
       <CustomNavBar />
 
       <main className="container mx-auto px-4 pt-28">
@@ -98,7 +109,11 @@ const Dashboard = () => {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
             {filteredTasks.map((task) => (
-              <TaskCard key={task.id} task={task} />
+              <TaskCard 
+                key={task.id} 
+                task={task} 
+                onDelete={() => handleDeleteTask(task.id)}
+              />
             ))}
           </div>
         )}

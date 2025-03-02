@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import CustomNavBar from '@/components/CustomNavBar';
@@ -65,7 +66,7 @@ const Tasks = () => {
   };
 
   return (
-    <div className="min-h-screen pb-16">
+    <div className="min-h-screen pb-16 page-container">
       <CustomNavBar />
 
       <main className="container mx-auto px-4 pt-28">

@@ -1,14 +1,14 @@
 
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { LogIn, UserPlus } from 'lucide-react';
-import CustomNavBar from '@/components/CustomNavBar';
+import { LogIn, UserPlus, ArrowLeft } from 'lucide-react';
+import { toast } from 'sonner';
 
 const LoginPage = () => {
   const [email, setEmail] = useState('');
@@ -31,6 +31,7 @@ const LoginPage = () => {
     e.preventDefault();
     
     if (!email || !password) {
+      toast.error('Please fill in all fields');
       return;
     }
     
@@ -38,8 +39,10 @@ const LoginPage = () => {
       setIsLoading(true);
       await signIn(email, password);
       navigate('/dashboard');
+      toast.success('Logged in successfully');
     } catch (error) {
       console.error('Login error:', error);
+      toast.error('Invalid email or password');
     } finally {
       setIsLoading(false);
     }
@@ -49,28 +52,42 @@ const LoginPage = () => {
     e.preventDefault();
     
     if (!email || !password || !fullName) {
+      toast.error('Please fill in all fields');
       return;
     }
     
     try {
       setIsLoading(true);
       await signUp(email, password, fullName);
+      toast.success('Account created successfully! Please log in.');
       setActiveTab('login');
     } catch (error) {
       console.error('Signup error:', error);
+      toast.error('Failed to create account. Email may already be in use.');
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <CustomNavBar />
+    <div className="auth-layout bg-background">
+      <header className="fixed w-full bg-white z-50 border-b border-gray-200">
+        <div className="container mx-auto px-4">
+          <div className="flex h-16 items-center justify-between">
+            <div className="flex items-center">
+              <Link to="/" className="text-xl font-bold flex items-center">
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Image Analysis Platform
+              </Link>
+            </div>
+          </div>
+        </div>
+      </header>
       
-      <div className="container mx-auto px-4 pt-24 pb-16 flex justify-center">
-        <Card className="w-full max-w-md">
+      <div className="auth-container container mx-auto px-4 py-16">
+        <Card className="w-full max-w-md shadow-lg">
           <CardHeader className="text-center">
-            <CardTitle className="text-2xl">Image Analysis Platform</CardTitle>
+            <CardTitle className="text-2xl">Welcome Back</CardTitle>
             <CardDescription>
               Login or create an account to analyze your images
             </CardDescription>
