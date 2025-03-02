@@ -25,6 +25,9 @@ export interface Image {
   analysisResult?: AnalysisResult;
 }
 
+// Adding this type for compatibility with existing components
+export type TaskImage = Image;
+
 export type TaskStatus = 'pending' | 'processing' | 'completed' | 'failed';
 export type TaskType = 'single-lot' | 'multi-lot';
 
@@ -53,6 +56,14 @@ interface AnalysisContextType {
   getTask: (taskId: string) => Task | undefined;
   uploadImage: (taskId: string, image: Omit<Image, 'id' | 'uploadedAt'>) => void;
   loadingTasks: boolean;
+  
+  // Add missing methods referenced in other components
+  addImageToTask: (taskId: string, image: TaskImage) => void;
+  removeImageFromTask: (taskId: string, imageId: string) => void;
+  getAnalysis: (id: string) => AnalysisResult | undefined;
+  addAnalysis: (result: AnalysisResult) => void;
+  setIsLoading: (loading: boolean) => void;
+  createTask: (type: TaskType) => Task;
 }
 
 const AnalysisContext = createContext<AnalysisContextType | undefined>(undefined);
@@ -62,6 +73,7 @@ export const AnalysisProvider = ({ children }: { children: ReactNode }) => {
   const [currentAnalysis, setCurrentAnalysis] = useState<AnalysisResult | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loadingTasks, setLoadingTasks] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const { user } = useAuth();
 
   useEffect(() => {
@@ -97,6 +109,14 @@ export const AnalysisProvider = ({ children }: { children: ReactNode }) => {
 
           if (imagesError) throw imagesError;
 
+          const mappedImages = imagesData ? imagesData.map((image) => ({
+            id: image.id,
+            imageUrl: image.image_url,
+            description: image.description,
+            uploadedAt: new Date(image.uploaded_at),
+            analysisResult: image.analysis_result ? convertJsonToAnalysisResult(image.analysis_result) : undefined
+          })) : [];
+
           return {
             id: task.id,
             name: task.name,
@@ -106,13 +126,7 @@ export const AnalysisProvider = ({ children }: { children: ReactNode }) => {
             createdAt: new Date(task.created_at),
             completedAt: task.completed_at ? new Date(task.completed_at) : undefined,
             user_id: task.user_id,
-            images: imagesData ? imagesData.map((image) => ({
-              id: image.id,
-              imageUrl: image.image_url,
-              description: image.description,
-              uploadedAt: new Date(image.uploaded_at),
-              analysisResult: image.analysis_result
-            })) : []
+            images: mappedImages
           };
         })
       );
@@ -124,6 +138,24 @@ export const AnalysisProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       setLoadingTasks(false);
     }
+  };
+
+  // Helper function to convert JSON to AnalysisResult type
+  const convertJsonToAnalysisResult = (json: any): AnalysisResult => {
+    if (!json) return null as unknown as AnalysisResult;
+    
+    // Ensure all required properties are present
+    return {
+      id: json.id || uuidv4(),
+      imageUrl: json.imageUrl || '',
+      date: json.date ? new Date(json.date) : new Date(),
+      objects: json.objects || [],
+      colors: json.colors || [],
+      tags: json.tags || [],
+      description: json.description || '',
+      searchResults: json.searchResults || [],
+      claudeAnalysis: json.claudeAnalysis || ''
+    };
   };
 
   const addAnalysisResult = (result: AnalysisResult) => {
@@ -200,21 +232,34 @@ export const AnalysisProvider = ({ children }: { children: ReactNode }) => {
         const newImages = updates.images.filter(img => !currentTask.images.some(existingImg => existingImg.id === img.id));
         
         for (const image of newImages) {
-          await supabase
+          const { error } = await supabase
             .from('images')
             .insert({
               task_id: taskId,
               image_url: image.imageUrl,
               description: image.description,
-              analysis_result: image.analysisResult
+              // Convert AnalysisResult to JSON for storage
+              analysis_result: image.analysisResult ? JSON.parse(JSON.stringify(image.analysisResult)) : null
             });
+            
+          if (error) {
+            console.error('Error inserting image:', error);
+            throw error;
+          }
           
           if (image.analysisResult) {
-            await supabase
+            const { error: updateError } = await supabase
               .from('images')
-              .update({ analysis_result: image.analysisResult })
+              .update({ 
+                analysis_result: JSON.parse(JSON.stringify(image.analysisResult))
+              })
               .eq('task_id', taskId)
               .eq('image_url', image.imageUrl);
+              
+            if (updateError) {
+              console.error('Error updating image analysis:', updateError);
+              throw updateError;
+            }
           }
         }
       }
@@ -291,6 +336,132 @@ export const AnalysisProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // Add the missing methods referenced in other components
+  const addImageToTask = async (taskId: string, image: TaskImage) => {
+    try {
+      const { data, error } = await supabase
+        .from('images')
+        .insert({
+          task_id: taskId,
+          image_url: image.imageUrl,
+          description: image.description,
+          analysis_result: image.analysisResult ? JSON.parse(JSON.stringify(image.analysisResult)) : null
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      
+      if (!data) {
+        throw new Error('Failed to add image to task');
+      }
+
+      const taskIndex = tasks.findIndex(t => t.id === taskId);
+      if (taskIndex === -1) return;
+
+      const newImage: Image = {
+        id: data.id,
+        imageUrl: data.image_url,
+        description: data.description,
+        uploadedAt: new Date(data.uploaded_at),
+        analysisResult: image.analysisResult
+      };
+
+      const updatedTask = { ...tasks[taskIndex] };
+      updatedTask.images = [...updatedTask.images, newImage];
+
+      const updatedTasks = [...tasks];
+      updatedTasks[taskIndex] = updatedTask;
+      setTasks(updatedTasks);
+    } catch (error) {
+      console.error('Error adding image to task:', error);
+      throw error;
+    }
+  };
+
+  const removeImageFromTask = async (taskId: string, imageId: string) => {
+    try {
+      const { error } = await supabase
+        .from('images')
+        .delete()
+        .eq('id', imageId);
+
+      if (error) throw error;
+
+      const taskIndex = tasks.findIndex(t => t.id === taskId);
+      if (taskIndex === -1) return;
+
+      const updatedTask = { ...tasks[taskIndex] };
+      updatedTask.images = updatedTask.images.filter(img => img.id !== imageId);
+
+      const updatedTasks = [...tasks];
+      updatedTasks[taskIndex] = updatedTask;
+      setTasks(updatedTasks);
+    } catch (error) {
+      console.error('Error removing image from task:', error);
+      toast.error('Failed to remove image');
+    }
+  };
+
+  const getAnalysis = (id: string): AnalysisResult | undefined => {
+    // First check in analysisResults
+    const result = analysisResults.find(a => a.id === id);
+    if (result) return result;
+    
+    // If not found, check in all tasks' images
+    for (const task of tasks) {
+      for (const image of task.images) {
+        if (image.analysisResult && image.analysisResult.id === id) {
+          return image.analysisResult;
+        }
+      }
+    }
+    
+    return undefined;
+  };
+
+  const addAnalysis = (result: AnalysisResult) => {
+    setAnalysisResults(prev => [...prev, result]);
+  };
+
+  // Create a new task with default values
+  const createTask = (type: TaskType = 'single-lot'): Task => {
+    if (!user) {
+      throw new Error('User must be logged in to create a task');
+    }
+
+    const newTask: Task = {
+      id: uuidv4(),
+      name: type === 'single-lot' ? 'Single Analysis' : 'Multi-Lot Analysis',
+      type: type,
+      status: 'pending',
+      images: [],
+      createdAt: new Date(),
+      user_id: user.id
+    };
+
+    setTasks(prev => [newTask, ...prev]);
+    
+    // Add to database asynchronously
+    supabase
+      .from('tasks')
+      .insert({
+        id: newTask.id,
+        name: newTask.name,
+        type: newTask.type,
+        status: newTask.status,
+        user_id: user.id
+      })
+      .then(({ error }) => {
+        if (error) {
+          console.error('Error creating task in database:', error);
+          toast.error('Failed to save task to database');
+        }
+      });
+
+    return newTask;
+  };
+
   return (
     <AnalysisContext.Provider
       value={{
@@ -305,7 +476,14 @@ export const AnalysisProvider = ({ children }: { children: ReactNode }) => {
         removeTask,
         getTask,
         uploadImage,
-        loadingTasks
+        loadingTasks,
+        // Added missing methods
+        addImageToTask,
+        removeImageFromTask,
+        getAnalysis,
+        addAnalysis,
+        setIsLoading,
+        createTask
       }}
     >
       {children}

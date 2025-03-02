@@ -11,4 +11,12 @@ export type ImageRow = Tables['images']['Row'];
 export type ProfileRow = Tables['profiles']['Row'];
 export type ReportRow = Tables['reports']['Row'];
 
+// Add SearchResult type for compatibility
+export interface SearchResult {
+  title: string;
+  price: string;
+  source: string;
+  url: string; // Add missing 'url' property
+}
+
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY);

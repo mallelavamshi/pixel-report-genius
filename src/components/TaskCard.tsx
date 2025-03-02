@@ -1,4 +1,3 @@
-
 import { Link } from 'react-router-dom';
 import { formatDistance } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
