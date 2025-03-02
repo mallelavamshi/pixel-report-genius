@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import CustomNavBar from '@/components/CustomNavBar';
@@ -51,7 +50,6 @@ const Tasks = () => {
     // Update the task with name and description
     if (newTask) {
       newTask.name = newTaskName;
-      newTask.title = newTaskName;
       if (newTaskDescription) {
         newTask.description = newTaskDescription;
       }
