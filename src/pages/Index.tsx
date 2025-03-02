@@ -1,35 +1,31 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import NavBar from '@/components/NavBar';
 import Hero from '@/components/Hero';
 import Features from '@/components/Features';
 import Pricing from '@/components/Pricing';
 import { Button } from '@/components/ui/button';
-import { toast } from 'sonner';
+import { useAuth } from '@/contexts/AuthContext';
 
 const Index = () => {
   const navigate = useNavigate();
   const [isHeroVisible, setIsHeroVisible] = useState(true);
+  const { user } = useAuth();
+
+  useEffect(() => {
+    // If user is already logged in, redirect to dashboard
+    if (user) {
+      navigate('/dashboard');
+    }
+  }, [user, navigate]);
 
   const handleLogin = () => {
-    // For demonstration purposes, we'll simulate a login by setting a localStorage value
-    localStorage.setItem('userLoggedIn', 'true');
-    localStorage.setItem('userRole', 'user');
-    localStorage.setItem('userTier', 'basic');
-    
-    toast.success('Successfully logged in!');
-    navigate('/tasks');
+    navigate('/login');
   };
 
   const handleSignUp = () => {
-    // For demonstration purposes, we'll simulate a signup by setting a localStorage value
-    localStorage.setItem('userLoggedIn', 'true');
-    localStorage.setItem('userRole', 'user');
-    localStorage.setItem('userTier', 'free');
-    
-    toast.success('Account created successfully!');
-    navigate('/tasks');
+    navigate('/login');
   };
 
   return (
