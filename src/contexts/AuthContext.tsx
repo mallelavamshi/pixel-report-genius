@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Session, User } from '@supabase/supabase-js';
@@ -82,6 +81,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setUser(null);
     setProfile(null);
     setIsAdmin(false);
+    
+    localStorage.removeItem('supabase.auth.token');
+    localStorage.removeItem('supabase.auth.expires_at');
+    localStorage.removeItem('supabase.auth.refresh_token');
+    
+    sessionStorage.clear();
   };
 
   const fetchProfile = async (userId: string) => {
@@ -158,15 +163,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       await supabase.auth.signOut();
       
-      // Force clear the auth state
       clearAuthState();
-      
-      // Set localStorage items to ensure clean state
-      localStorage.removeItem('supabase.auth.token');
       
       toast.success('Logged out successfully');
       
-      // Force reload the page to ensure a clean state
       window.location.href = '/';
     } catch (error: any) {
       console.error('Error signing out:', error);

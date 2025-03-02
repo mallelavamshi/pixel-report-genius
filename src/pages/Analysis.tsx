@@ -9,6 +9,7 @@ import { ArrowLeft, Download, Image as ImageIcon, Tag, Palette, FileText, Eye } 
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { generatePDF, downloadPDF } from '@/lib/pdfGenerator';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 const Analysis = () => {
@@ -18,6 +19,7 @@ const Analysis = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [reportUrl, setReportUrl] = useState<string | null>(null);
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+  const [isLoadingReport, setIsLoadingReport] = useState(true);
 
   const analysis = id ? getAnalysis(id) : undefined;
 
@@ -25,8 +27,31 @@ const Analysis = () => {
     if (!analysis) {
       toast.error("Analysis not found");
       navigate('/dashboard');
+      return;
     }
-  }, [analysis, navigate]);
+
+    // Try to fetch existing report from Supabase
+    const fetchExistingReport = async () => {
+      setIsLoadingReport(true);
+      try {
+        const { data, error } = await supabase
+          .from('reports')
+          .select('pdf_url')
+          .eq('task_id', id)
+          .maybeSingle();
+
+        if (data && data.pdf_url) {
+          setReportUrl(data.pdf_url);
+        }
+      } catch (error) {
+        console.error("Error fetching existing report:", error);
+      } finally {
+        setIsLoadingReport(false);
+      }
+    };
+
+    fetchExistingReport();
+  }, [analysis, id, navigate]);
 
   if (!analysis) {
     return null;

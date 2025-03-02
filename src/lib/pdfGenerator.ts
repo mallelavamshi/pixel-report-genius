@@ -1,6 +1,9 @@
+
 import { AnalysisResult, Task } from '@/contexts/AnalysisContext';
 import { jsPDF } from 'jspdf';
 import { resizeImage } from '@/services/imgbbService';
+import { supabase } from '@/integrations/supabase/client';
+import { v4 as uuidv4 } from 'uuid';
 
 // Import explicitly for autoTable
 import 'jspdf-autotable';
@@ -11,6 +14,50 @@ declare module 'jspdf' {
     autoTable: (options: any) => jsPDF;
   }
 }
+
+/**
+ * Save report URL to Supabase
+ */
+export const saveReportToSupabase = async (
+  taskId: string | undefined, 
+  pdfUrl: string | null = null, 
+  excelUrl: string | null = null
+): Promise<void> => {
+  try {
+    if (!taskId) return;
+    
+    // Check if a report for this task already exists
+    const { data: existingReport } = await supabase
+      .from('reports')
+      .select('*')
+      .eq('task_id', taskId)
+      .maybeSingle();
+    
+    if (existingReport) {
+      // Update existing report
+      await supabase
+        .from('reports')
+        .update({
+          pdf_url: pdfUrl || existingReport.pdf_url,
+          excel_url: excelUrl || existingReport.excel_url,
+        })
+        .eq('id', existingReport.id);
+    } else {
+      // Create new report
+      await supabase
+        .from('reports')
+        .insert({
+          id: uuidv4(),
+          task_id: taskId,
+          pdf_url: pdfUrl,
+          excel_url: excelUrl,
+        });
+    }
+  } catch (error) {
+    console.error('Error saving report to Supabase:', error);
+    throw error;
+  }
+};
 
 /**
  * Generate a PDF report in the EstateGenius AI style
@@ -71,8 +118,15 @@ export const generatePDF = async (analysis: AnalysisResult): Promise<string> => 
       doc.text('Image or analysis not available', 75, startY + 30);
     }
     
-    // Save the PDF
-    return URL.createObjectURL(doc.output('blob'));
+    // Generate the PDF URL
+    const pdfUrl = URL.createObjectURL(doc.output('blob'));
+    
+    // Save to Supabase if there's a task ID
+    if (analysis.id) {
+      await saveReportToSupabase(analysis.id, pdfUrl);
+    }
+    
+    return pdfUrl;
   } catch (error) {
     console.error('Error generating PDF:', error);
     throw error;
@@ -164,8 +218,15 @@ export const generateTaskPDF = async (task: Task): Promise<string> => {
       currentY += 60;
     }
     
-    // Save the PDF
-    return URL.createObjectURL(doc.output('blob'));
+    // Generate the PDF URL
+    const pdfUrl = URL.createObjectURL(doc.output('blob'));
+    
+    // Save to Supabase if there's a task ID
+    if (task.id) {
+      await saveReportToSupabase(task.id, pdfUrl);
+    }
+    
+    return pdfUrl;
   } catch (error) {
     console.error('Error generating task PDF:', error);
     throw error;

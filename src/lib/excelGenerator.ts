@@ -2,6 +2,7 @@ import { AnalysisResult, Task } from '@/contexts/AnalysisContext';
 import { utils, write } from 'xlsx';
 import { jsPDF } from 'jspdf';
 import { resizeImage } from '@/services/imgbbService';
+import { saveReportToSupabase } from './pdfGenerator';
 
 /**
  * Generate an Excel report - simpler implementation
@@ -56,8 +57,14 @@ export const generateExcel = async (analysis: AnalysisResult): Promise<string> =
     // Generate Excel file
     const excelBuffer = write(wb, { bookType: 'xlsx', type: 'array' });
     const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const excelUrl = URL.createObjectURL(blob);
     
-    return URL.createObjectURL(blob);
+    // Save to Supabase if there's a task ID
+    if (analysis.id) {
+      await saveReportToSupabase(analysis.id, null, excelUrl);
+    }
+    
+    return excelUrl;
   } catch (error) {
     console.error('Error generating Excel:', error);
     throw error;
@@ -124,8 +131,14 @@ export const generateTaskExcel = async (task: Task): Promise<string> => {
     // Generate Excel file
     const excelBuffer = write(wb, { bookType: 'xlsx', type: 'array' });
     const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const excelUrl = URL.createObjectURL(blob);
     
-    return URL.createObjectURL(blob);
+    // Save to Supabase if there's a task ID
+    if (task.id) {
+      await saveReportToSupabase(task.id, null, excelUrl);
+    }
+    
+    return excelUrl;
   } catch (error) {
     console.error('Error generating task Excel:', error);
     throw error;

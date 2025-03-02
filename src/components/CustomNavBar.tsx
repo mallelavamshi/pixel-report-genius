@@ -18,7 +18,8 @@ const CustomNavBar = () => {
     try {
       setIsLoggingOut(true);
       await signOut();
-      // Navigation is handled in the signOut function
+      // Explicitly force navigation to home page after logout
+      window.location.href = '/';
     } catch (error) {
       console.error('Logout error:', error);
       toast.error('Failed to log out');
