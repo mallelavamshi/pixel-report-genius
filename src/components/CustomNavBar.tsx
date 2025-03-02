@@ -18,7 +18,7 @@ const CustomNavBar = () => {
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
           <div className="flex items-center">
-            <Link to="/tasks" className="text-xl font-bold">
+            <Link to="/" className="text-xl font-bold">
               Image Analysis Platform
             </Link>
             
