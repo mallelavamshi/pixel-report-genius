@@ -1,5 +1,6 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import CustomNavBar from '@/components/CustomNavBar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,9 +8,22 @@ import ApiKeyManager from '@/components/ApiKeyManager';
 import UserManagement from '@/components/UserManagement';
 import SubscriptionPlans from '@/components/SubscriptionPlans';
 import { Settings } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
 
 const AdminDashboard = () => {
   const [apiKeyManagerOpen, setApiKeyManagerOpen] = useState(false);
+  const { isAdmin, loading } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!loading && !isAdmin) {
+      toast.error("Access denied. Admin privileges required.");
+      navigate('/dashboard');
+    }
+  }, [isAdmin, loading, navigate]);
+
+  if (loading || !isAdmin) return null;
 
   return (
     <div className="min-h-screen pb-16">

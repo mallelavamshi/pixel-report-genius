@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -5,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { AlertTriangle } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 type ApiKey = {
   imgbb: string;
@@ -64,12 +66,8 @@ type ApiKeyManagerProps = {
 
 const ApiKeyManager = ({ open, onOpenChange, adminMode = false }: ApiKeyManagerProps) => {
   const { apiKeys, updateApiKey, getMaskedApiKeys } = useApiKeys();
-  const [tempKeys, setTempKeys] = useState<ApiKey>(adminMode ? apiKeys : getMaskedApiKeys());
-  const [isUserAdmin, setIsUserAdmin] = useState(adminMode);
-
-  // Get user role from local storage
-  const userRole = localStorage.getItem('userRole');
-  const isAdmin = userRole === 'admin';
+  const { isAdmin } = useAuth();
+  const [tempKeys, setTempKeys] = useState<ApiKey>(isAdmin ? apiKeys : getMaskedApiKeys());
 
   useEffect(() => {
     if (open) {
