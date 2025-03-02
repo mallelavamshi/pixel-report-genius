@@ -188,7 +188,8 @@ export const AnalysisProvider = ({ children }: { children: ReactNode }) => {
         type: data.type as TaskType,
         status: data.status as TaskStatus,
         createdAt: new Date(data.created_at),
-        user_id: data.user_id
+        user_id: data.user_id,
+        images: []
       };
 
       setTasks(prev => [newTask, ...prev]);
