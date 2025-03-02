@@ -9,6 +9,7 @@ export type SearchResult = {
   currency?: string;
   extractedPrice?: number;
   link?: string;
+  url?: string;  // Add url property to match expected type in other parts of the app
   thumbnail?: string;
   position?: number;
 };
@@ -96,6 +97,7 @@ export const searchSimilarProducts = async (
         currency: match.currency || undefined,
         extractedPrice: match.extracted_price || undefined,
         link: match.link || undefined,
+        url: match.link || undefined,  // Set url to be the same as link to match expected type
         thumbnail: match.thumbnail || (match.image ? match.image.link : undefined),
         position: match.position || undefined
       }));

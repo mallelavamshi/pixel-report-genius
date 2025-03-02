@@ -29,6 +29,18 @@ export type TaskImage = {
   analysisResult?: AnalysisResult;
 };
 
+export type SearchResult = {
+  title: string;
+  source: string;
+  price?: string;
+  currency?: string;
+  extractedPrice?: number;
+  url?: string;  // Add this property to match expected type
+  link?: string; // Keep this too for backward compatibility
+  thumbnail?: string;
+  position?: number;
+};
+
 export type AnalysisResult = {
   id: string;
   imageUrl: string;
@@ -49,15 +61,12 @@ export type AnalysisResult = {
   }>;
   tags: string[];
   description: string;
-  searchResults?: Array<{
-    title: string;
-    source: string;
-    price?: string;
-    currency?: string;
-    extractedPrice?: number;
-  }>;
+  searchResults?: SearchResult[];
   claudeAnalysis?: string;
 };
+
+
+
 
 export type AnalysisContextType = {
   analyses: AnalysisResult[];

@@ -179,13 +179,13 @@ const Task = () => {
     toast.success("Image added successfully");
   }, [task, imageFile, imagePreview, updateTask]);
 
+  // Updated processImage function to match expected types
   const processImage = async (imageUrl: string, imageDescription?: string) => {
     try {
       console.log("Processing image:", { imageUrl, imageDescription });
       
       // Upload to ImgBB
       console.log("Uploading to ImgBB");
-      // Pass the URL directly to uploadImageToImgBB - we fixed the function to handle URLs
       const imgbbUrl = await uploadImageToImgBB(imageUrl, apiKeys.imgbb);
       if (!imgbbUrl) throw new Error("Failed to upload image to ImgBB");
       console.log("Image uploaded successfully to ImgBB:", imgbbUrl);
@@ -234,7 +234,7 @@ const Task = () => {
         colors: mockColors,
         tags: ["analyzed", "collectible", "appraised"],
         description: imageDescription || "Analyzed collectible item",
-        searchResults,
+        searchResults, // This now includes the url property required by the type
         claudeAnalysis
       };
     } catch (error: any) {

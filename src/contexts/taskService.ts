@@ -16,7 +16,7 @@ export const createTask = (type: TaskType = 'single-lot', userTier: TaskTier): T
     tier: userTier,
     createdAt: now,
     created: now,
-    images: [],
+    images: [],  // Make sure this property exists
     maxImages: type === 'multi-lot' ? 10 : 1,
     userId: localStorage.getItem('userRole') || 'user',
     inQueue: false
