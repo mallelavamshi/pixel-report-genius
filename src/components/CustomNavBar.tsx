@@ -1,7 +1,7 @@
 
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { ShieldCheck, User, Settings, LayoutDashboard } from 'lucide-react';
+import { ShieldCheck, User, Settings, LayoutDashboard, LogOut } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import ApiKeyManager from '@/components/ApiKeyManager';
@@ -10,8 +10,19 @@ import { useAuth } from '@/contexts/AuthContext';
 const CustomNavBar = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isAdmin } = useAuth();
+  const { isAdmin, signOut } = useAuth();
   const [apiKeyManagerOpen, setApiKeyManagerOpen] = useState(false);
+
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      navigate('/');
+      toast.success('Logged out successfully');
+    } catch (error) {
+      console.error('Logout error:', error);
+      toast.error('Failed to log out');
+    }
+  };
 
   return (
     <header className="fixed w-full bg-white z-50 border-b border-gray-200">
@@ -67,16 +78,14 @@ const CustomNavBar = () => {
               {isAdmin ? 'Admin Mode' : 'User Mode'}
             </Button>
             
-            {location.pathname !== '/dashboard' && (
-              <Button 
-                variant="ghost" 
-                size="sm"
-                onClick={() => navigate('/dashboard')}
-              >
-                <LayoutDashboard className="h-4 w-4 mr-2" />
-                Dashboard
-              </Button>
-            )}
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={handleLogout}
+            >
+              <LogOut className="h-4 w-4 mr-2" />
+              Logout
+            </Button>
           </div>
         </div>
       </div>

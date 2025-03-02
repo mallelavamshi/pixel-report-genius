@@ -1,20 +1,10 @@
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ShieldCheck, User, Settings, LogIn, UserPlus, LogOut } from 'lucide-react';
 import { toast } from 'sonner';
 import ApiKeyManager from '@/components/ApiKeyManager';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { useAuth } from '@/contexts/AuthContext';
 
 const NavBar = () => {
@@ -22,6 +12,16 @@ const NavBar = () => {
   const location = useLocation();
   const { user, profile, isAdmin, signOut } = useAuth();
   const [apiKeyManagerOpen, setApiKeyManagerOpen] = useState(false);
+
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      navigate('/');
+    } catch (error) {
+      console.error('Logout error:', error);
+      toast.error('Failed to log out');
+    }
+  };
 
   return (
     <header className="fixed w-full bg-white z-50 border-b border-gray-200">
@@ -81,7 +81,7 @@ const NavBar = () => {
                 <Button 
                   variant="ghost" 
                   size="sm"
-                  onClick={() => signOut()}
+                  onClick={handleLogout}
                 >
                   <LogOut className="h-4 w-4 mr-2" />
                   Logout
