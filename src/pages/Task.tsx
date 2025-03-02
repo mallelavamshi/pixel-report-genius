@@ -343,7 +343,7 @@ const Task = () => {
       const generatedPdfUrl = await generateTaskPDF(task);
       setPdfUrl(generatedPdfUrl);
       
-      const generatedExcelUrl = generateTaskExcel(task);
+      const generatedExcelUrl = await generateTaskExcel(task);
       setExcelUrl(generatedExcelUrl);
       
       toast.success("Reports generated successfully");
