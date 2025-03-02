@@ -1,101 +1,61 @@
 
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { useState, useEffect } from "react";
-import Index from "./pages/Index";
-import Dashboard from "./pages/Dashboard";
-import Tasks from "./pages/Tasks";
-import Analysis from "./pages/Analysis";
-import Task from "./pages/Task";
-import NotFound from "./pages/NotFound";
-import AdminDashboard from "./pages/AdminDashboard";
-import { AnalysisProvider } from "./contexts/AnalysisContext";
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { AnalysisProvider } from './contexts/AnalysisContext';
+import { AuthProvider } from './contexts/AuthContext';
+import { Toaster } from './components/ui/sonner';
 
-const queryClient = new QueryClient();
+import Index from './pages/Index';
+import Dashboard from './pages/Dashboard';
+import Tasks from './pages/Tasks';
+import Task from './pages/Task';
+import Analysis from './pages/Analysis';
+import AdminDashboard from './pages/AdminDashboard';
+import NotFound from './pages/NotFound';
+import ProtectedRoute from './components/ProtectedRoute';
+import LoginPage from './pages/LoginPage';
 
-// Check if user is authenticated
-const isAuthenticated = () => {
-  // For testing purposes, always return true
-  // In a real app, you would check for a valid auth token
-  return true;
-};
+import './App.css';
 
-// Check user role
-const isAdmin = () => {
-  // For testing purposes, return true or false based on localStorage
-  return localStorage.getItem('userRole') === 'admin';
-};
-
-// Get user tier
-const getUserTier = () => {
-  // For testing purposes, return a tier from localStorage or default to 'basic'
-  return localStorage.getItem('userTier') || 'basic';
-};
-
-const App = () => {
-  const [userTier, setUserTier] = useState(getUserTier());
-  
-  // Update userTier when localStorage changes
-  useEffect(() => {
-    const handleStorageChange = () => {
-      setUserTier(getUserTier());
-    };
-    
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
-  }, []);
-
+function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <AnalysisProvider>
-          <BrowserRouter>
-            <Toaster />
-            <Sonner />
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route 
-                path="/tasks" 
-                element={
-                  isAuthenticated() ? <Tasks /> : <Navigate to="/" replace />
-                } 
-              />
-              <Route 
-                path="/dashboard" 
-                element={
-                  isAuthenticated() ? <Dashboard /> : <Navigate to="/" replace />
-                } 
-              />
-              <Route 
-                path="/analysis/:id" 
-                element={
-                  isAuthenticated() ? <Analysis /> : <Navigate to="/" replace />
-                } 
-              />
-              <Route 
-                path="/task/:id" 
-                element={
-                  isAuthenticated() ? <Task /> : <Navigate to="/" replace />
-                } 
-              />
-              <Route 
-                path="/admin" 
-                element={
-                  isAuthenticated() && isAdmin() ? 
-                  <AdminDashboard /> : 
-                  <Navigate to="/dashboard" replace />
-                } 
-              />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
-        </AnalysisProvider>
-      </TooltipProvider>
-    </QueryClientProvider>
+    <AuthProvider>
+      <AnalysisProvider>
+        <Router>
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/dashboard" element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            } />
+            <Route path="/tasks" element={
+              <ProtectedRoute>
+                <Tasks />
+              </ProtectedRoute>
+            } />
+            <Route path="/task/:id" element={
+              <ProtectedRoute>
+                <Task />
+              </ProtectedRoute>
+            } />
+            <Route path="/analysis/:id" element={
+              <ProtectedRoute>
+                <Analysis />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin" element={
+              <ProtectedRoute requireAdmin>
+                <AdminDashboard />
+              </ProtectedRoute>
+            } />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+          <Toaster />
+        </Router>
+      </AnalysisProvider>
+    </AuthProvider>
   );
-};
+}
 
 export default App;
