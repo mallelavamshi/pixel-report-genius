@@ -185,7 +185,6 @@ const Task = () => {
       
       // Upload to ImgBB
       console.log("Uploading to ImgBB");
-      // Pass the URL directly to uploadImageToImgBB - we fixed the function to handle URLs
       const imgbbUrl = await uploadImageToImgBB(imageUrl, apiKeys.imgbb);
       if (!imgbbUrl) throw new Error("Failed to upload image to ImgBB");
       console.log("Image uploaded successfully to ImgBB:", imgbbUrl);
@@ -341,11 +340,11 @@ const Task = () => {
     setIsGeneratingReport(true);
     
     try {
-      const pdfUrl = await generateTaskPDF(task);
-      setPdfUrl(pdfUrl);
+      const generatedPdfUrl = await generateTaskPDF(task);
+      setPdfUrl(generatedPdfUrl);
       
-      const excelUrl = generateTaskExcel(task);
-      setExcelUrl(excelUrl);
+      const generatedExcelUrl = generateTaskExcel(task);
+      setExcelUrl(generatedExcelUrl);
       
       toast.success("Reports generated successfully");
     } catch (error) {
