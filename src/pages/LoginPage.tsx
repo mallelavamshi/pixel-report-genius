@@ -77,7 +77,7 @@ const LoginPage = () => {
             <div className="flex items-center">
               <Link to="/" className="text-xl font-bold flex items-center">
                 <ArrowLeft className="h-4 w-4 mr-2" />
-                Image Analysis Platform
+                EstateGeniusAI
               </Link>
             </div>
           </div>
@@ -89,7 +89,7 @@ const LoginPage = () => {
           <CardHeader className="text-center">
             <CardTitle className="text-2xl">Welcome Back</CardTitle>
             <CardDescription>
-              Login or create an account to analyze your images
+              Login or create an account to analyze your items
             </CardDescription>
           </CardHeader>
           

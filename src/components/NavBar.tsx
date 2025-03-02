@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ShieldCheck, User, Settings, LogIn, UserPlus, LogOut } from 'lucide-react';
@@ -12,14 +12,18 @@ const NavBar = () => {
   const location = useLocation();
   const { user, profile, isAdmin, signOut } = useAuth();
   const [apiKeyManagerOpen, setApiKeyManagerOpen] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const handleLogout = async () => {
     try {
+      setIsLoggingOut(true);
       await signOut();
       // Navigation is handled in the signOut function
     } catch (error) {
       console.error('Logout error:', error);
       toast.error('Failed to log out');
+    } finally {
+      setIsLoggingOut(false);
     }
   };
 
@@ -82,8 +86,13 @@ const NavBar = () => {
                   variant="ghost" 
                   size="sm"
                   onClick={handleLogout}
+                  disabled={isLoggingOut}
                 >
-                  <LogOut className="h-4 w-4 mr-2" />
+                  {isLoggingOut ? (
+                    <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-gray-400 mr-2"></div>
+                  ) : (
+                    <LogOut className="h-4 w-4 mr-2" />
+                  )}
                   Logout
                 </Button>
               </>

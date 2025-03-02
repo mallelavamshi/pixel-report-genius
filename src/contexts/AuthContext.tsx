@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Session, User } from '@supabase/supabase-js';
@@ -28,21 +29,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setLoading(true);
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        setSession(session);
-        setUser(session?.user ?? null);
         
-        if (session?.user) {
-          await fetchProfile(session.user.id);
+        if (session) {
+          setSession(session);
+          setUser(session.user);
+          
+          if (session.user) {
+            await fetchProfile(session.user.id);
+          }
         } else {
+          setSession(null);
+          setUser(null);
           setProfile(null);
           setIsAdmin(false);
         }
       } catch (error) {
         console.error('Error initializing auth:', error);
-        setSession(null);
-        setUser(null);
-        setProfile(null);
-        setIsAdmin(false);
+        clearAuthState();
       } finally {
         setLoading(false);
       }
@@ -54,14 +57,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       async (event, session) => {
         console.log('Auth state changed:', event, session?.user?.email);
         
-        setSession(session);
-        setUser(session?.user ?? null);
-        
-        if (session?.user) {
-          await fetchProfile(session.user.id);
+        if (session) {
+          setSession(session);
+          setUser(session.user);
+          
+          if (session.user) {
+            await fetchProfile(session.user.id);
+          }
         } else {
-          setProfile(null);
-          setIsAdmin(false);
+          clearAuthState();
         }
         
         setLoading(false);
@@ -72,6 +76,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       subscription.unsubscribe();
     };
   }, []);
+
+  const clearAuthState = () => {
+    setSession(null);
+    setUser(null);
+    setProfile(null);
+    setIsAdmin(false);
+  };
 
   const fetchProfile = async (userId: string) => {
     try {
@@ -145,19 +156,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signOut = async () => {
     try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
+      await supabase.auth.signOut();
       
-      setSession(null);
-      setUser(null);
-      setProfile(null);
-      setIsAdmin(false);
+      // Force clear the auth state
+      clearAuthState();
+      
+      // Set localStorage items to ensure clean state
+      localStorage.removeItem('supabase.auth.token');
       
       toast.success('Logged out successfully');
       
-      setTimeout(() => {
-        window.location.href = '/';
-      }, 300);
+      // Force reload the page to ensure a clean state
+      window.location.href = '/';
     } catch (error: any) {
       console.error('Error signing out:', error);
       toast.error(error.message || 'Error signing out');
