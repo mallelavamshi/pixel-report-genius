@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -39,7 +38,7 @@ export interface SearchResult {
 export interface AnalysisResult {
   id: string;
   imageUrl: string;
-  date: Date;
+  date: string;
   objects: Array<{
     name: string;
     confidence: number;

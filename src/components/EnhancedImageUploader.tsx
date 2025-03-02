@@ -135,10 +135,10 @@ const EnhancedImageUploader = ({ taskId, onUploadComplete }: EnhancedImageUpload
           id: generateId(),
           imageUrl: URL.createObjectURL(file),
           description: description,
-          uploadedAt: new Date(),
+          uploadedAt: new Date().toISOString(),
         };
         
-        addImageToTask(taskId, newImage);
+        addImageToTask(taskId, newImage.imageUrl, newImage.description);
         
         sonnerToast.success("Image uploaded successfully");
         

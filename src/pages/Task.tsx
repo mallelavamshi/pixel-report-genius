@@ -142,7 +142,7 @@ const Task = () => {
       id: uuidv4(),
       imageUrl: imagePreview,
       description: imageDescription,
-      uploadedAt: new Date(),
+      uploadedAt: new Date().toISOString(),
     };
     
     updateTask(task.id, {
@@ -164,7 +164,7 @@ const Task = () => {
       id: uuidv4(),
       imageUrl: imagePreview,
       description: '',
-      uploadedAt: new Date(),
+      uploadedAt: new Date().toISOString(),
     };
     
     updateTask(task.id, {
@@ -179,18 +179,15 @@ const Task = () => {
     toast.success("Image added successfully");
   }, [task, imageFile, imagePreview, updateTask]);
 
-  // Updated processImage function to match expected types
   const processImage = async (imageUrl: string, imageDescription?: string) => {
     try {
       console.log("Processing image:", { imageUrl, imageDescription });
       
-      // Upload to ImgBB
       console.log("Uploading to ImgBB");
       const imgbbUrl = await uploadImageToImgBB(imageUrl, apiKeys.imgbb);
       if (!imgbbUrl) throw new Error("Failed to upload image to ImgBB");
       console.log("Image uploaded successfully to ImgBB:", imgbbUrl);
       
-      // Search for similar products
       console.log("Searching similar products with SearchAPI");
       const searchQuery = imageDescription || "eBay Etsy collectible";
       const searchResults = await searchSimilarProducts(
@@ -200,7 +197,6 @@ const Task = () => {
       );
       console.log("Search results:", searchResults.length, "items found");
       
-      // Analyze with Claude
       console.log("Analyzing with Claude");
       let claudeAnalysis;
       try {
@@ -211,7 +207,6 @@ const Task = () => {
         claudeAnalysis = "Error performing AI analysis. Please try again later.";
       }
       
-      // Create mock objects and colors (these would normally come from an image analysis service)
       const mockObjects = [
         { 
           name: imageDescription || "Analyzed Object", 
@@ -229,12 +224,12 @@ const Task = () => {
       return {
         id: uuidv4(),
         imageUrl: imgbbUrl,
-        date: new Date(),
+        date: new Date().toISOString(),
         objects: mockObjects,
         colors: mockColors,
         tags: ["analyzed", "collectible", "appraised"],
         description: imageDescription || "Analyzed collectible item",
-        searchResults, // This now includes the url property required by the type
+        searchResults,
         claudeAnalysis
       };
     } catch (error: any) {
@@ -264,7 +259,6 @@ const Task = () => {
       const updatedImages = [...task.images];
       const newProcessingStatus: Record<string, string> = {};
       
-      // Process each image one by one
       for (let i = 0; i < updatedImages.length; i++) {
         const image = updatedImages[i];
         
@@ -288,7 +282,6 @@ const Task = () => {
           newProcessingStatus[image.id] = `Completed`;
           setProcessingStatus(prev => ({ ...prev, [image.id]: newProcessingStatus[image.id] }));
           
-          // Update the task after each image is processed
           updateTask(task.id, { 
             images: updatedImages
           });
@@ -304,7 +297,6 @@ const Task = () => {
       
       const anySuccessful = updatedImages.some(img => img.analysisResult);
       
-      // Update task status
       updateTask(task.id, { 
         status: anySuccessful ? 'completed' : 'failed',
         completedAt: new Date(),
@@ -330,7 +322,7 @@ const Task = () => {
     } finally {
       setIsSubmitting(false);
     }
-  }; 
+  };
 
   const handleGenerateReports = async () => {
     if (!task || task.images.length === 0) {
