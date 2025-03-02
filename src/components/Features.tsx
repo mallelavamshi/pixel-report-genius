@@ -1,11 +1,11 @@
 
 import { 
   Camera, 
-  Eye, 
   FileText, 
-  Palette, 
   Zap, 
-  Shield
+  Shield,
+  Table,
+  BookOpen
 } from 'lucide-react';
 
 const features = [
@@ -15,19 +15,19 @@ const features = [
     description: "Upload an image and get instant analysis powered by state-of-the-art AI algorithms."
   },
   {
-    icon: <Eye className="h-8 w-8 text-primary" />,
-    title: "Object Detection",
-    description: "Identify and locate multiple objects within your images with precision and accuracy."
-  },
-  {
-    icon: <Palette className="h-8 w-8 text-primary" />,
-    title: "Color Analysis",
-    description: "Extract color palettes and understand color distribution across your images."
+    icon: <Table className="h-8 w-8 text-primary" />,
+    title: "Multi Lot Analysis",
+    description: "Process and analyze multiple items in a single task for estate sales and auctions."
   },
   {
     icon: <FileText className="h-8 w-8 text-primary" />,
-    title: "PDF Report Generation",
-    description: "Generate comprehensive PDF reports with detailed analysis of your images."
+    title: "Excel Report Generation",
+    description: "Generate comprehensive Excel reports with detailed analysis of your items."
+  },
+  {
+    icon: <BookOpen className="h-8 w-8 text-primary" />,
+    title: "Description Generation",
+    description: "Create professional item descriptions automatically to enhance your listings."
   },
   {
     icon: <Zap className="h-8 w-8 text-primary" />,

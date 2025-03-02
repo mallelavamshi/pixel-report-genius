@@ -16,7 +16,7 @@ const CustomNavBar = () => {
   const handleLogout = async () => {
     try {
       await signOut();
-      navigate('/');
+      // Navigation is handled in the signOut function
       toast.success('Logged out successfully');
     } catch (error) {
       console.error('Logout error:', error);
@@ -30,7 +30,7 @@ const CustomNavBar = () => {
         <div className="flex h-16 items-center justify-between">
           <div className="flex items-center">
             <Link to="/" className="text-xl font-bold">
-              Image Analysis Platform
+              EstateGeniusAI
             </Link>
             
             <nav className="ml-10 space-x-4 hidden md:flex">

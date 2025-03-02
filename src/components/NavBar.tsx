@@ -29,7 +29,7 @@ const NavBar = () => {
         <div className="flex h-16 items-center justify-between">
           <div className="flex items-center">
             <Link to="/" className="text-xl font-bold">
-              Image Analysis Platform
+              EstateGeniusAI
             </Link>
             
             <nav className="ml-10 space-x-4 hidden md:flex">

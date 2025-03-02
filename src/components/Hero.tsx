@@ -22,11 +22,11 @@ const Hero = () => {
         <div className="flex flex-col items-center space-y-6 text-center">
           <div className="space-y-3">
             <h1 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl lg:text-6xl/none bg-gradient-to-r from-[#8B5CF6] to-[#D946EF] bg-clip-text text-transparent">
-              Intelligent Image Analysis Platform
+              Intelligent Lots Analysis Platform
             </h1>
             <p className="mx-auto max-w-[700px] text-[#555555] md:text-xl">
               Upload images and get detailed analysis using cutting-edge AI technology.
-              Perfect for product research, comparison, and market analysis.
+              Perfect for items research, price discovery, and market analysis for Estate sales companies, Appraisers and Auction Houses.
             </p>
           </div>
           <div className="flex flex-wrap gap-4 justify-center">

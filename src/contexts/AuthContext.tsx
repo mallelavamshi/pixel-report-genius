@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Session, User } from '@supabase/supabase-js';
@@ -25,7 +24,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    // Get initial session
     const initializeAuth = async () => {
       setLoading(true);
       try {
@@ -41,7 +39,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
       } catch (error) {
         console.error('Error initializing auth:', error);
-        // Reset auth state on error
         setSession(null);
         setUser(null);
         setProfile(null);
@@ -53,7 +50,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     initializeAuth();
 
-    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('Auth state changed:', event, session?.user?.email);
@@ -91,13 +87,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setIsAdmin(data?.role === 'admin');
     } catch (error) {
       console.error('Error fetching profile:', error);
-      // Don't reset profile on fetch error to avoid logout
     }
   };
 
   const signUp = async (email: string, password: string, fullName: string) => {
     try {
-      // First create the user in auth
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -110,10 +104,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       if (error) throw error;
 
-      // If user creation was successful, insert the profile using service role
-      // which bypasses RLS policies
       if (data.user) {
-        // Using the supabase client with normal permissions
         const { error: profileError } = await supabase
           .from('profiles')
           .insert({
@@ -125,10 +116,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (profileError) {
           console.error('Error creating profile:', profileError);
           toast.error('Error creating user profile. Please try again.');
-          
-          // Optional: Sign out the user if profile creation fails
-          // await supabase.auth.signOut();
-          
           throw profileError;
         }
       }
@@ -161,7 +148,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       
-      // Force clear the auth state
       setSession(null);
       setUser(null);
       setProfile(null);
@@ -169,8 +155,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       toast.success('Logged out successfully');
       
-      // Force a page reload to clear any cached state
-      window.location.href = '/';
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 300);
     } catch (error: any) {
       console.error('Error signing out:', error);
       toast.error(error.message || 'Error signing out');
