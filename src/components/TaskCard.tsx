@@ -15,15 +15,11 @@ const TaskCard = ({ task }: TaskCardProps) => {
   // Safely format the date - handle potential invalid date values
   const getTimeAgo = () => {
     try {
-      // First check if created exists and is a valid date
-      if (task.created && !isNaN(new Date(task.created).getTime())) {
-        return formatDistance(new Date(task.created), new Date(), { addSuffix: true });
-      }
-      // Then check if createdAt exists and is a valid date
-      else if (task.createdAt && !isNaN(new Date(task.createdAt).getTime())) {
+      // Check if createdAt exists and is a valid date
+      if (task.createdAt && !isNaN(new Date(task.createdAt).getTime())) {
         return formatDistance(new Date(task.createdAt), new Date(), { addSuffix: true });
       }
-      // If neither is valid, return a fallback
+      // If not valid, return a fallback
       return "recently";
     } catch (error) {
       console.error("Error formatting date:", error);
@@ -32,8 +28,8 @@ const TaskCard = ({ task }: TaskCardProps) => {
   };
   
   // Use the first image as the task image if available
-  const taskImage = task.images && task.images.length > 0 ? task.images[0].imageUrl : task.imageUrl;
-  const taskTitle = task.title || task.name || 'Untitled Task';
+  const taskImage = task.images && task.images.length > 0 ? task.images[0].imageUrl : undefined;
+  const taskTitle = task.name || 'Untitled Task';
   const timeAgo = getTimeAgo();
   
   return (

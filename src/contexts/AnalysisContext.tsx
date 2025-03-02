@@ -1,7 +1,9 @@
+
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
+import { toast } from 'sonner';
 
 export interface AnalysisResult {
   id: string;
@@ -80,6 +82,11 @@ export const AnalysisProvider = ({ children }: { children: ReactNode }) => {
 
       if (tasksError) throw tasksError;
 
+      if (!tasksData) {
+        setTasks([]);
+        return;
+      }
+
       const formattedTasks = await Promise.all(
         tasksData.map(async (task) => {
           const { data: imagesData, error: imagesError } = await supabase
@@ -99,13 +106,13 @@ export const AnalysisProvider = ({ children }: { children: ReactNode }) => {
             createdAt: new Date(task.created_at),
             completedAt: task.completed_at ? new Date(task.completed_at) : undefined,
             user_id: task.user_id,
-            images: imagesData.map((image) => ({
+            images: imagesData ? imagesData.map((image) => ({
               id: image.id,
               imageUrl: image.image_url,
               description: image.description,
               uploadedAt: new Date(image.uploaded_at),
               analysisResult: image.analysis_result
-            }))
+            })) : []
           };
         })
       );
@@ -113,6 +120,7 @@ export const AnalysisProvider = ({ children }: { children: ReactNode }) => {
       setTasks(formattedTasks);
     } catch (error) {
       console.error('Error fetching tasks:', error);
+      toast.error('Failed to load tasks');
     } finally {
       setLoadingTasks(false);
     }
@@ -141,6 +149,10 @@ export const AnalysisProvider = ({ children }: { children: ReactNode }) => {
         .single();
 
       if (error) throw error;
+      
+      if (!data) {
+        throw new Error('Failed to create task');
+      }
 
       const newTask: Task = {
         id: data.id,
@@ -157,6 +169,7 @@ export const AnalysisProvider = ({ children }: { children: ReactNode }) => {
       return data.id;
     } catch (error) {
       console.error('Error adding task:', error);
+      toast.error('Failed to create task');
       throw error;
     }
   };
@@ -212,6 +225,7 @@ export const AnalysisProvider = ({ children }: { children: ReactNode }) => {
       setTasks(updatedTasks);
     } catch (error) {
       console.error('Error updating task:', error);
+      toast.error('Failed to update task');
     }
   };
 
@@ -225,8 +239,10 @@ export const AnalysisProvider = ({ children }: { children: ReactNode }) => {
       if (error) throw error;
 
       setTasks(prev => prev.filter(task => task.id !== taskId));
+      toast.success('Task removed successfully');
     } catch (error) {
       console.error('Error removing task:', error);
+      toast.error('Failed to remove task');
     }
   };
 
@@ -247,6 +263,10 @@ export const AnalysisProvider = ({ children }: { children: ReactNode }) => {
         .single();
 
       if (error) throw error;
+      
+      if (!data) {
+        throw new Error('Failed to upload image');
+      }
 
       const taskIndex = tasks.findIndex(t => t.id === taskId);
       if (taskIndex === -1) return;
@@ -264,8 +284,10 @@ export const AnalysisProvider = ({ children }: { children: ReactNode }) => {
       const updatedTasks = [...tasks];
       updatedTasks[taskIndex] = updatedTask;
       setTasks(updatedTasks);
+      toast.success('Image uploaded successfully');
     } catch (error) {
       console.error('Error uploading image:', error);
+      toast.error('Failed to upload image');
     }
   };
 

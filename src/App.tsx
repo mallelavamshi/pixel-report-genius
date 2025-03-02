@@ -34,7 +34,7 @@ function App() {
                 <Tasks />
               </ProtectedRoute>
             } />
-            <Route path="/tasks/:id" element={
+            <Route path="/task/:id" element={
               <ProtectedRoute>
                 <Task />
               </ProtectedRoute>

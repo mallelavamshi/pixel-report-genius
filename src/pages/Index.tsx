@@ -20,14 +20,6 @@ const Index = () => {
     }
   }, [user, navigate]);
 
-  const handleLogin = () => {
-    navigate('/login');
-  };
-
-  const handleSignUp = () => {
-    navigate('/login');
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-white to-[#F6F6F7]">
       <NavBar />
