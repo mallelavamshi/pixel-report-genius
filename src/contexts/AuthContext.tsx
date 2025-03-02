@@ -75,6 +75,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signUp = async (email: string, password: string, fullName: string) => {
     try {
+      // First create the user in auth
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -87,8 +88,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       if (error) throw error;
 
-      // Create profile
+      // If user creation was successful, insert the profile using service role
+      // which bypasses RLS policies
       if (data.user) {
+        // Using the supabase client with normal permissions
         const { error: profileError } = await supabase
           .from('profiles')
           .insert({
@@ -97,7 +100,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             full_name: fullName,
           });
 
-        if (profileError) throw profileError;
+        if (profileError) {
+          console.error('Error creating profile:', profileError);
+          toast.error('Error creating user profile. Please try again.');
+          
+          // Optional: Sign out the user if profile creation fails
+          // await supabase.auth.signOut();
+          
+          throw profileError;
+        }
       }
 
       toast.success('Signup successful. Please check your email for verification.');
