@@ -1,52 +1,54 @@
+
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Session, User } from '@supabase/supabase-js';
-import { toast } from 'sonner';
+import { AuthContextType, AuthState } from '@/auth/types';
+import { clearAuthState, fetchProfile, signIn, signOut, signUp } from '@/auth/authUtils';
 
-interface AuthContextType {
-  session: Session | null;
-  user: User | null;
-  profile: any | null;
-  loading: boolean;
-  signUp: (email: string, password: string, fullName: string) => Promise<void>;
-  signIn: (email: string, password: string) => Promise<void>;
-  signOut: () => Promise<void>;
-  isAdmin: boolean;
-}
+const initialAuthState: AuthState = {
+  session: null,
+  user: null,
+  profile: null,
+  loading: true,
+  isAdmin: false
+};
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [session, setSession] = useState<Session | null>(null);
-  const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<any | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [authState, setAuthState] = useState<AuthState>(initialAuthState);
+
+  const updateAuthState = (updates: Partial<AuthState>) => {
+    setAuthState(prevState => ({ ...prevState, ...updates }));
+  };
 
   useEffect(() => {
     const initializeAuth = async () => {
-      setLoading(true);
+      updateAuthState({ loading: true });
       try {
         const { data: { session } } = await supabase.auth.getSession();
         
         if (session) {
-          setSession(session);
-          setUser(session.user);
+          updateAuthState({ session, user: session.user });
           
           if (session.user) {
-            await fetchProfile(session.user.id);
+            const { profile, isAdmin } = await fetchProfile(session.user.id);
+            updateAuthState({ profile, isAdmin });
           }
         } else {
-          setSession(null);
-          setUser(null);
-          setProfile(null);
-          setIsAdmin(false);
+          updateAuthState({ 
+            session: null, 
+            user: null, 
+            profile: null, 
+            isAdmin: false 
+          });
         }
       } catch (error) {
         console.error('Error initializing auth:', error);
         clearAuthState();
+        updateAuthState(initialAuthState);
       } finally {
-        setLoading(false);
+        updateAuthState({ loading: false });
       }
     };
 
@@ -57,17 +59,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         console.log('Auth state changed:', event, session?.user?.email);
         
         if (session) {
-          setSession(session);
-          setUser(session.user);
+          updateAuthState({ session, user: session.user, loading: true });
           
           if (session.user) {
-            await fetchProfile(session.user.id);
+            const { profile, isAdmin } = await fetchProfile(session.user.id);
+            updateAuthState({ profile, isAdmin });
           }
         } else {
-          clearAuthState();
+          updateAuthState({ 
+            session: null, 
+            user: null, 
+            profile: null, 
+            isAdmin: false 
+          });
         }
         
-        setLoading(false);
+        updateAuthState({ loading: false });
       }
     );
 
@@ -76,118 +83,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
   }, []);
 
-  const clearAuthState = () => {
-    setSession(null);
-    setUser(null);
-    setProfile(null);
-    setIsAdmin(false);
-    
-    localStorage.removeItem('supabase.auth.token');
-    localStorage.removeItem('supabase.auth.expires_at');
-    localStorage.removeItem('supabase.auth.refresh_token');
-    
-    sessionStorage.clear();
-  };
-
-  const fetchProfile = async (userId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
-
-      if (error) throw error;
-      
-      setProfile(data);
-      setIsAdmin(data?.role === 'admin');
-    } catch (error) {
-      console.error('Error fetching profile:', error);
-    }
-  };
-
-  const signUp = async (email: string, password: string, fullName: string) => {
-    try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: fullName,
-          },
-        },
-      });
-
-      if (error) throw error;
-
-      if (data.user) {
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert({
-            id: data.user.id,
-            email: email,
-            full_name: fullName,
-          });
-
-        if (profileError) {
-          console.error('Error creating profile:', profileError);
-          toast.error('Error creating user profile. Please try again.');
-          throw profileError;
-        }
-      }
-
-      toast.success('Signup successful. Please check your email for verification.');
-    } catch (error: any) {
-      toast.error(error.message || 'An error occurred during signup');
-      throw error;
-    }
-  };
-
-  const signIn = async (email: string, password: string) => {
-    try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (error) throw error;
-      
-      toast.success('Logged in successfully');
-    } catch (error: any) {
-      toast.error(error.message || 'Login failed');
-      throw error;
-    }
-  };
-
-  const signOut = async () => {
-    try {
-      await supabase.auth.signOut();
-      
-      clearAuthState();
-      
-      toast.success('Logged out successfully');
-      
-      window.location.href = '/';
-    } catch (error: any) {
-      console.error('Error signing out:', error);
-      toast.error(error.message || 'Error signing out');
-      throw error;
-    }
+  const contextValue: AuthContextType = {
+    ...authState,
+    signUp,
+    signIn, 
+    signOut
   };
 
   return (
-    <AuthContext.Provider
-      value={{
-        session,
-        user,
-        profile,
-        loading,
-        signUp,
-        signIn,
-        signOut,
-        isAdmin
-      }}
-    >
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );

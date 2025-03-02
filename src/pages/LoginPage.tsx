@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -21,7 +20,6 @@ const LoginPage = () => {
   const navigate = useNavigate();
   
   useEffect(() => {
-    // Redirect if already logged in
     if (user) {
       navigate('/dashboard');
     }
