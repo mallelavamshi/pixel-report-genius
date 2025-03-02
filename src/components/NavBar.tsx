@@ -1,8 +1,8 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { ShieldCheck, User, Settings, LogIn, UserPlus } from 'lucide-react';
+import { ShieldCheck, User, Settings, LogIn, UserPlus, LogOut } from 'lucide-react';
 import { toast } from 'sonner';
 import ApiKeyManager from '@/components/ApiKeyManager';
 import {
@@ -27,6 +27,19 @@ const NavBar = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [userEmail, setUserEmail] = useState(() => localStorage.getItem('userEmail') || '');
+
+  // Update login state when localStorage changes
+  useEffect(() => {
+    const handleStorageChange = () => {
+      setIsLoggedIn(localStorage.getItem('userLoggedIn') === 'true');
+      setIsAdmin(localStorage.getItem('userRole') === 'admin');
+      setUserEmail(localStorage.getItem('userEmail') || '');
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
 
   // Toggle admin role (for demo purposes only)
   const toggleAdminRole = () => {
@@ -57,6 +70,7 @@ const NavBar = () => {
     localStorage.setItem('userEmail', email);
     
     setIsLoggedIn(true);
+    setUserEmail(email);
     setLoginDialogOpen(false);
     toast.success('Successfully logged in!');
     
@@ -83,6 +97,7 @@ const NavBar = () => {
     localStorage.setItem('userEmail', email);
     
     setIsLoggedIn(true);
+    setUserEmail(email);
     setSignUpDialogOpen(false);
     toast.success('Account created successfully!');
     
@@ -103,6 +118,7 @@ const NavBar = () => {
     localStorage.removeItem('userEmail');
     
     setIsLoggedIn(false);
+    setUserEmail('');
     toast.success('Successfully logged out!');
     
     // Navigate to home
@@ -151,6 +167,10 @@ const NavBar = () => {
                   </Button>
                 )}
                 
+                <div className="text-sm font-medium mr-2">
+                  {userEmail}
+                </div>
+                
                 <Button 
                   variant="outline" 
                   size="sm"
@@ -166,6 +186,7 @@ const NavBar = () => {
                   size="sm"
                   onClick={handleLogout}
                 >
+                  <LogOut className="h-4 w-4 mr-2" />
                   Logout
                 </Button>
               </>
