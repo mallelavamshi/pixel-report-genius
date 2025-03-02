@@ -63,7 +63,7 @@ export const analyzeImage = async (imageUrl: string): Promise<AnalysisResult> =>
   return {
     id: generateId(),
     imageUrl,
-    date: new Date(),
+    date: new Date().toISOString(),
     objects: detectObjects(imageUrl),
     colors: analyzeColors(imageUrl),
     tags: generateTags(imageUrl),

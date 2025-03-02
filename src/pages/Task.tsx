@@ -299,7 +299,7 @@ const Task = () => {
       
       updateTask(task.id, { 
         status: anySuccessful ? 'completed' : 'failed',
-        completedAt: new Date(),
+        completedAt: new Date().toISOString(),
         images: updatedImages
       });
       
