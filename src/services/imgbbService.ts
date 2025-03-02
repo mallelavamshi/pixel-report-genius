@@ -1,4 +1,3 @@
-
 /**
  * Service for imgBB API integration
  */
@@ -26,9 +25,9 @@ const isValidUrl = (url: string): boolean => {
  * @param apiKey The imgBB API key
  * @returns Promise with the image URL
  */
-export const uploadImageToImgBB = async (imageFile: File, apiKey: string): Promise<string> => {
+export const uploadImageToImgBB = async (imageFile: File | string, apiKey: string): Promise<string> => {
   try {
-    console.log("Starting ImgBB upload for file:", imageFile.name);
+    console.log("Starting ImgBB upload for file:", typeof imageFile === 'string' ? 'image URL' : imageFile.name);
     
     // Check for missing API key
     if (!apiKey) {
@@ -36,45 +35,36 @@ export const uploadImageToImgBB = async (imageFile: File, apiKey: string): Promi
       throw new Error("ImgBB API key is missing");
     }
 
-    // Validate the file
-    if (!imageFile || !(imageFile instanceof File)) {
-      console.error("Invalid image file provided");
+    // Convert URL to File if needed
+    let fileToUpload: File;
+    if (typeof imageFile === 'string') {
+      fileToUpload = await urlToFile(imageFile, 'image.jpg');
+    } else if (imageFile instanceof File) {
+      fileToUpload = imageFile;
+    } else {
       throw new Error("Invalid image file provided");
     }
     
     const formData = new FormData();
-    formData.append('image', imageFile);
+    // For ImgBB API, we need to convert the file to base64
+    const base64Data = await fileToBase64(fileToUpload);
+    formData.append('image', base64Data);
     formData.append('key', apiKey);
-    formData.append('expiration', '0'); // No expiration to ensure URLs remain valid
     
     console.log("Sending request to ImgBB API");
     
-    // Use AbortSignal.timeout if available, otherwise create our own timeout
-    let timeoutId: number | null = null;
-    let controller: AbortController | null = null;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(new Error('Timeout')), 30000);
     
     try {
-      const options: RequestInit = {
+      const response = await fetch('https://api.imgbb.com/1/upload', {
         method: 'POST',
         body: formData,
+        signal: controller.signal,
         cache: 'no-cache',
-      };
+      });
       
-      // If AbortSignal.timeout is available, use it
-      if (typeof AbortSignal.timeout === 'function') {
-        options.signal = AbortSignal.timeout(30000); // 30 second timeout
-      } else {
-        // Otherwise use our own controller
-        controller = new AbortController();
-        options.signal = controller.signal;
-        timeoutId = window.setTimeout(() => controller.abort(new Error('Timeout')), 30000);
-      }
-      
-      const response = await fetch('https://api.imgbb.com/1/upload', options);
-      
-      if (timeoutId !== null && controller !== null) {
-        clearTimeout(timeoutId);
-      }
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -83,14 +73,14 @@ export const uploadImageToImgBB = async (imageFile: File, apiKey: string): Promi
       }
 
       const data = await response.json();
-      console.log("ImgBB upload response received:", data ? "data received" : "no data");
+      console.log("ImgBB upload response received");
       
       if (!data.success) {
         console.error("ImgBB upload failed:", data);
         throw new Error('Failed to upload image to ImgBB');
       }
 
-      // Return the direct image URL (but validate it first)
+      // Return the direct image URL
       if (!data.data || !data.data.url || !isValidUrl(data.data.url)) {
         console.error("ImgBB returned invalid URL:", data);
         throw new Error('ImgBB returned invalid URL');
@@ -99,9 +89,7 @@ export const uploadImageToImgBB = async (imageFile: File, apiKey: string): Promi
       console.log("ImgBB upload successful, URL:", data.data.url);
       return data.data.url;
     } catch (error: any) {
-      if (timeoutId !== null) {
-        clearTimeout(timeoutId);
-      }
+      clearTimeout(timeoutId);
       if (error.name === 'AbortError') {
         throw new Error('ImgBB upload timed out after 30 seconds');
       }
@@ -111,6 +99,27 @@ export const uploadImageToImgBB = async (imageFile: File, apiKey: string): Promi
     console.error('Error uploading to ImgBB:', error);
     throw error;
   }
+};
+
+/**
+ * Converts a file to base64 string
+ * @param file File to convert
+ * @returns Promise with base64 string
+ */
+export const fileToBase64 = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => {
+      let result = reader.result as string;
+      // Remove the data URL prefix if it exists (ImgBB only wants the base64 part)
+      if (result.includes('base64,')) {
+        result = result.split('base64,')[1];
+      }
+      resolve(result);
+    };
+    reader.onerror = error => reject(error);
+  });
 };
 
 /**
@@ -136,16 +145,15 @@ export const urlToFile = async (url: string, filename: string = 'image.jpg'): Pr
     }
     
     // Handle regular URL
-    if (!isValidUrl(url)) {
-      console.error('Invalid URL provided to urlToFile:', url);
-      throw new Error('Invalid URL provided');
-    }
+    const response = await fetch(url, {
+      mode: 'cors', // Try with CORS
+      cache: 'no-cache',
+    });
     
-    console.log(`Converting URL to File: ${url.substring(0, 30)}...`);
-    const response = await fetch(url);
     if (!response.ok) {
       throw new Error(`Failed to fetch URL: ${response.status} ${response.statusText}`);
     }
+    
     const blob = await response.blob();
     return new File([blob], filename, { type: blob.type });
   } catch (error) {
@@ -163,15 +171,17 @@ export const urlToFile = async (url: string, filename: string = 'image.jpg'): Pr
  */
 export const resizeImage = async (imageUrl: string, maxWidth: number = 200, maxHeight: number = 200): Promise<string> => {
   return new Promise((resolve, reject) => {
-    if (!isValidUrl(imageUrl) && !imageUrl.startsWith('data:') && !imageUrl.startsWith('blob:')) {
-      console.error('Invalid URL provided to resizeImage:', imageUrl);
-      reject(new Error('Invalid image URL provided'));
-      return;
-    }
-    
     const img = new Image();
     img.crossOrigin = "anonymous";
+    
+    // Add timeout to prevent hanging on image load
+    const timeoutId = setTimeout(() => {
+      img.src = '';
+      reject(new Error('Image loading timed out'));
+    }, 15000);
+    
     img.onload = () => {
+      clearTimeout(timeoutId);
       // Calculate new dimensions while maintaining aspect ratio
       let width = img.width;
       let height = img.height;
@@ -206,53 +216,28 @@ export const resizeImage = async (imageUrl: string, maxWidth: number = 200, maxH
     };
     
     img.onerror = (e) => {
+      clearTimeout(timeoutId);
       console.error('Error loading image for resizing:', e);
       reject(new Error('Failed to load image for resizing'));
     };
     
-    // Add timeout to prevent hanging on image load
-    const timeoutId = setTimeout(() => {
-      img.src = '';
-      reject(new Error('Image loading timed out'));
-    }, 15000);
-    
-    img.onload = () => {
-      clearTimeout(timeoutId);
-      // Original onload code...
-      // Calculate new dimensions while maintaining aspect ratio
-      let width = img.width;
-      let height = img.height;
-      
-      if (width > height) {
-        if (width > maxWidth) {
-          height = Math.round(height * (maxWidth / width));
-          width = maxWidth;
-        }
-      } else {
-        if (height > maxHeight) {
-          width = Math.round(width * (maxHeight / height));
-          height = maxHeight;
-        }
-      }
-      
-      // Create canvas and resize image
-      const canvas = document.createElement('canvas');
-      canvas.width = width;
-      canvas.height = height;
-      
-      const ctx = canvas.getContext('2d');
-      if (!ctx) {
-        reject(new Error('Failed to get canvas context'));
-        return;
-      }
-      
-      ctx.drawImage(img, 0, 0, width, height);
-      
-      // Return resized image as data URL
-      resolve(canvas.toDataURL('image/jpeg', 0.92));
-    };
-    
-    img.src = imageUrl;
+    // If the imageUrl is a blob URL or data URL, just use it directly
+    if (imageUrl.startsWith('blob:') || imageUrl.startsWith('data:')) {
+      img.src = imageUrl;
+    } else {
+      // For regular URLs, try to fetch with CORS
+      fetch(imageUrl, { mode: 'cors', cache: 'no-cache' })
+        .then(response => response.blob())
+        .then(blob => {
+          const objectURL = URL.createObjectURL(blob);
+          img.src = objectURL;
+        })
+        .catch(err => {
+          // If fetching fails, try loading the URL directly
+          console.warn('Error fetching image with CORS, trying direct load:', err);
+          img.src = imageUrl;
+        });
+    }
   });
 };
 
@@ -265,10 +250,19 @@ export const blobUrlToDataUrl = async (blobUrl: string): Promise<string> => {
   return new Promise((resolve, reject) => {
     try {
       if (!blobUrl.startsWith('blob:')) {
+        // If it's already a data URL, just return it
+        if (blobUrl.startsWith('data:')) {
+          resolve(blobUrl);
+          return;
+        }
         console.error('Invalid blob URL provided:', blobUrl);
         reject(new Error('Invalid blob URL provided'));
         return;
       }
+      
+      const timeoutId = setTimeout(() => {
+        reject(new Error('Blob URL conversion timed out'));
+      }, 15000);
       
       fetch(blobUrl)
         .then(response => {
@@ -280,17 +274,19 @@ export const blobUrlToDataUrl = async (blobUrl: string): Promise<string> => {
         .then(blob => {
           const reader = new FileReader();
           reader.onloadend = () => {
+            clearTimeout(timeoutId);
             resolve(reader.result as string);
           };
-          reader.onerror = reject;
+          reader.onerror = (error) => {
+            clearTimeout(timeoutId);
+            reject(error);
+          };
           reader.readAsDataURL(blob);
         })
-        .catch(reject);
-        
-      // Add timeout
-      setTimeout(() => {
-        reject(new Error('Blob URL conversion timed out'));
-      }, 15000);
+        .catch(error => {
+          clearTimeout(timeoutId);
+          reject(error);
+        });
     } catch (error) {
       reject(error);
     }

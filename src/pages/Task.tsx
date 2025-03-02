@@ -183,22 +183,14 @@ const Task = () => {
     try {
       console.log("Processing image:", { imageUrl, imageDescription });
       
-      let imageFile: File;
-      if (imageUrl.startsWith('blob:') || imageUrl.startsWith('data:')) {
-        console.log("Converting blob/data URL to file");
-        imageFile = await urlToFile(imageUrl, 'image.jpg');
-      } else {
-        console.log("Converting URL to file");
-        const response = await fetch(imageUrl);
-        const blob = await response.blob();
-        imageFile = new File([blob], 'image.jpg', { type: blob.type });
-      }
-      
+      // Upload to ImgBB
       console.log("Uploading to ImgBB");
-      const imgbbUrl = await uploadImageToImgBB(imageFile, apiKeys.imgbb);
+      // Pass the URL directly to uploadImageToImgBB - we fixed the function to handle URLs
+      const imgbbUrl = await uploadImageToImgBB(imageUrl, apiKeys.imgbb);
       if (!imgbbUrl) throw new Error("Failed to upload image to ImgBB");
       console.log("Image uploaded successfully to ImgBB:", imgbbUrl);
       
+      // Search for similar products
       console.log("Searching similar products with SearchAPI");
       const searchQuery = imageDescription || "eBay Etsy collectible";
       const searchResults = await searchSimilarProducts(
@@ -208,30 +200,38 @@ const Task = () => {
       );
       console.log("Search results:", searchResults.length, "items found");
       
-      if (searchResults.length === 0) {
-        console.warn("No search results found, but continuing with Claude analysis");
+      // Analyze with Claude
+      console.log("Analyzing with Claude");
+      let claudeAnalysis;
+      try {
+        claudeAnalysis = await analyzeImageWithClaude(imgbbUrl, searchResults, apiKeys.anthropic);
+        console.log("Claude analysis completed");
+      } catch (error) {
+        console.error("Error with Claude analysis:", error);
+        claudeAnalysis = "Error performing AI analysis. Please try again later.";
       }
       
-      console.log("Analyzing with Claude");
-      const claudeAnalysis = await analyzeImageWithClaude(imgbbUrl, searchResults, apiKeys.anthropic);
-      console.log("Claude analysis completed:", claudeAnalysis.substring(0, 100) + "...");
+      // Create mock objects and colors (these would normally come from an image analysis service)
+      const mockObjects = [
+        { 
+          name: imageDescription || "Analyzed Object", 
+          confidence: 0.95, 
+          boundingBox: { x: 10, y: 10, width: 80, height: 80 } 
+        }
+      ];
+      
+      const mockColors = [
+        { color: "#ff5733", percentage: 35 },
+        { color: "#33ff57", percentage: 25 },
+        { color: "#3357ff", percentage: 40 }
+      ];
       
       return {
         id: uuidv4(),
         imageUrl: imgbbUrl,
         date: new Date(),
-        objects: [
-          { 
-            name: imageDescription || "Analyzed Object", 
-            confidence: 0.95, 
-            boundingBox: { x: 10, y: 10, width: 80, height: 80 } 
-          }
-        ],
-        colors: [
-          { color: "#ff5733", percentage: 35 },
-          { color: "#33ff57", percentage: 25 },
-          { color: "#3357ff", percentage: 40 }
-        ],
+        objects: mockObjects,
+        colors: mockColors,
         tags: ["analyzed", "collectible", "appraised"],
         description: imageDescription || "Analyzed collectible item",
         searchResults,
@@ -248,13 +248,13 @@ const Task = () => {
       toast.error("Please upload at least one image");
       return;
     }
-
+  
     if (!areApiKeysConfigured()) {
       toast.error("Please configure your API keys first");
       setIsApiKeysDialogOpen(true);
       return;
     }
-
+  
     setIsSubmitting(true);
     setShowResultsTable(true);
     
@@ -264,6 +264,7 @@ const Task = () => {
       const updatedImages = [...task.images];
       const newProcessingStatus: Record<string, string> = {};
       
+      // Process each image one by one
       for (let i = 0; i < updatedImages.length; i++) {
         const image = updatedImages[i];
         
@@ -287,11 +288,12 @@ const Task = () => {
           newProcessingStatus[image.id] = `Completed`;
           setProcessingStatus(prev => ({ ...prev, [image.id]: newProcessingStatus[image.id] }));
           
+          // Update the task after each image is processed
           updateTask(task.id, { 
             images: updatedImages
           });
           
-          console.log("Updated image with analysis result:", updatedImages[i].analysisResult);
+          console.log("Updated image with analysis result");
           
         } catch (error: any) {
           console.error(`Error processing image ${i}:`, error);
@@ -302,6 +304,7 @@ const Task = () => {
       
       const anySuccessful = updatedImages.some(img => img.analysisResult);
       
+      // Update task status
       updateTask(task.id, { 
         status: anySuccessful ? 'completed' : 'failed',
         completedAt: new Date(),
@@ -327,7 +330,7 @@ const Task = () => {
     } finally {
       setIsSubmitting(false);
     }
-  };
+  }; 
 
   const handleGenerateReports = async () => {
     if (!task || task.images.length === 0) {

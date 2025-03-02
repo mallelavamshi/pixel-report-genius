@@ -1,16 +1,6 @@
-
 /**
  * Service for SearchAPI integration
  */
-
-// Add AbortSignal.timeout polyfill if not available
-if (!AbortSignal.timeout) {
-  AbortSignal.timeout = function timeout(ms: number) {
-    const controller = new AbortController();
-    setTimeout(() => controller.abort(new Error('Timeout')), ms);
-    return controller.signal;
-  };
-}
 
 export type SearchResult = {
   title: string;
@@ -60,17 +50,16 @@ export const searchSimilarProducts = async (
       api_key: apiKey
     };
     
-    // Don't use URLSearchParams as it may not encode things properly
     const queryString = Object.entries(params)
-      .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
+      .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`)
       .join('&');
       
     const apiUrl = `https://www.searchapi.io/api/v1/search?${queryString}`;
     
-    console.log("Sending request to SearchAPI:", apiUrl.replace(apiKey, "API_KEY_HIDDEN"));
+    console.log("Sending request to SearchAPI");
     
-    // Use longer timeout for SearchAPI (45 seconds)
-    const timeoutSignal = AbortSignal.timeout(45000);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(new Error('Timeout')), 45000);
     
     try {
       const response = await fetch(apiUrl, {
@@ -79,9 +68,11 @@ export const searchSimilarProducts = async (
           'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
-        signal: timeoutSignal,
+        signal: controller.signal,
         cache: 'no-cache',
       });
+      
+      clearTimeout(timeoutId);
       
       if (!response.ok) {
         const errorText = await response.text();
@@ -90,10 +81,10 @@ export const searchSimilarProducts = async (
       }
 
       const data = await response.json();
-      console.log("SearchAPI response received:", data ? "data received" : "no data");
+      console.log("SearchAPI response received");
       
       if (!data || !data.visual_matches || !Array.isArray(data.visual_matches)) {
-        console.warn("No visual matches found in SearchAPI response:", data);
+        console.warn("No visual matches found in SearchAPI response");
         return [];
       }
       
@@ -112,6 +103,7 @@ export const searchSimilarProducts = async (
       console.log(`SearchAPI returned ${results.length} results`);
       return results;
     } catch (error: any) {
+      clearTimeout(timeoutId);
       if (error.name === 'AbortError') {
         throw new Error('SearchAPI request timed out after 45 seconds');
       }

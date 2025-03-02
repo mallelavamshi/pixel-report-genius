@@ -1,217 +1,229 @@
-
 import { AnalysisResult, Task } from '@/contexts/AnalysisContext';
 import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
 import { resizeImage } from '@/services/imgbbService';
 
+// Import explicitly for autoTable
+import 'jspdf-autotable';
+
+// Extend jsPDF type definitions to include autoTable
 declare module 'jspdf' {
   interface jsPDF {
     autoTable: (options: any) => jsPDF;
   }
 }
 
+/**
+ * Generate a PDF report in the EstateGenius AI style
+ */
 export const generatePDF = async (analysis: AnalysisResult): Promise<string> => {
-  // A4 size in mm: 210 x 297
-  const doc = new jsPDF({
-    orientation: 'portrait',
-    unit: 'mm',
-    format: 'a4'
-  });
-  
-  // Add title
-  doc.setFontSize(22);
-  doc.text('Image Analysis Report', 105, 20, { align: 'center' });
-  
-  // Add date
-  doc.setFontSize(12);
-  doc.text(`Generated: ${analysis.date.toLocaleString()}`, 105, 30, { align: 'center' });
-  
-  // Add image
   try {
-    // Resize image while maintaining aspect ratio
-    console.log("Adding image to PDF:", analysis.imageUrl);
-    const resizedImageUrl = await resizeImage(analysis.imageUrl, 200, 200);
-    
-    // Add the resized image
-    doc.addImage(resizedImageUrl, 'JPEG', 15, 40, 50, 50);
-  } catch (error) {
-    console.error('Error adding image to PDF:', error);
-    doc.text('Image preview not available', 105, 70, { align: 'center' });
-  }
-  
-  // Add description
-  doc.setFontSize(14);
-  doc.text('Description:', 15, 100);
-  doc.setFontSize(12);
-  
-  const description = analysis.description;
-  const splitDescription = doc.splitTextToSize(description, 180);
-  doc.text(splitDescription, 15, 110);
-  
-  // Add tags
-  doc.setFontSize(14);
-  doc.text('Tags:', 15, 130);
-  doc.setFontSize(12);
-  doc.text(analysis.tags.join(', '), 15, 140);
-  
-  // Add detected objects table
-  doc.setFontSize(14);
-  doc.text('Detected Objects:', 15, 160);
-  
-  doc.autoTable({
-    startY: 170,
-    head: [['Object', 'Confidence']],
-    body: analysis.objects.map(obj => [
-      obj.name,
-      `${(obj.confidence * 100).toFixed(2)}%`
-    ]),
-  });
-  
-  // Add color analysis
-  let currentY = (doc as any).lastAutoTable.finalY + 20;
-  doc.setFontSize(14);
-  doc.text('Color Analysis:', 15, currentY);
-  
-  analysis.colors.forEach((color, index) => {
-    const yPos = currentY + 10 + (index * 10);
-    
-    // Color box
-    doc.setFillColor(color.color);
-    doc.rect(15, yPos - 7, 10, 10, 'F');
-    
-    // Color info
-    doc.setFontSize(12);
-    doc.text(`${color.color} (${color.percentage}%)`, 30, yPos);
-  });
-  
-  // Add Claude Analysis if available
-  if (analysis.claudeAnalysis) {
-    // Add a new page for Claude analysis
-    doc.addPage();
-    
-    doc.setFontSize(18);
-    doc.text('AI Analysis by Claude', 105, 20, { align: 'center' });
-    
-    doc.setFontSize(12);
-    const claudeText = analysis.claudeAnalysis;
-    const splitClaudeText = doc.splitTextToSize(claudeText, 180);
-    doc.text(splitClaudeText, 15, 40);
-  }
-  
-  // Add Search Results if available
-  if (analysis.searchResults && analysis.searchResults.length > 0) {
-    // Add a new page for search results
-    doc.addPage();
-    
-    doc.setFontSize(18);
-    doc.text('Similar Products Found Online', 105, 20, { align: 'center' });
-    
-    doc.autoTable({
-      startY: 30,
-      head: [['Product', 'Source', 'Price']],
-      body: analysis.searchResults.map(result => [
-        result.title,
-        result.source,
-        result.price || 'N/A'
-      ]),
+    // A4 size in mm: 210 x 297
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4'
     });
+    
+    // Add EstateGenius AI style header
+    addHeader(doc);
+    
+    // Define starting position after header
+    const startY = 50;
+    
+    // Add table headers
+    doc.setFillColor(128, 128, 128);  // Grey background
+    doc.setTextColor(255, 255, 255);  // White text
+    doc.setFontSize(12);
+    doc.rect(10, startY, 60, 10, 'F');
+    doc.rect(70, startY, 130, 10, 'F');
+    doc.text("Image", 40, startY + 6, { align: 'center' });
+    doc.text("Analysis", 135, startY + 6, { align: 'center' });
+    
+    // Reset text color
+    doc.setTextColor(0, 0, 0);
+    
+    // Add image and analysis
+    try {
+      // Add image cell with border
+      doc.setDrawColor(0);
+      doc.rect(10, startY + 10, 60, 60);
+      doc.setFillColor(245, 245, 220);  // Beige background
+      doc.rect(10, startY + 10, 60, 60, 'F');
+      
+      // Add image
+      const resizedImageUrl = await resizeImage(analysis.imageUrl, 150, 150);
+      doc.addImage(resizedImageUrl, 'JPEG', 15, startY + 15, 50, 50);
+      
+      // Add analysis cell with border
+      doc.rect(70, startY + 10, 130, 60);
+      doc.setFillColor(245, 245, 220);  // Beige background
+      doc.rect(70, startY + 10, 130, 60, 'F');
+      
+      // Format analysis content with bullet points
+      doc.setFontSize(10);
+      const analysisText = formatAnalysisText(analysis);
+      
+      // Split text to fit in cell
+      const splitText = doc.splitTextToSize(analysisText, 120);
+      doc.text(splitText, 75, startY + 20);
+    } catch (error) {
+      console.error('Error adding content to PDF:', error);
+      doc.text('Image or analysis not available', 75, startY + 30);
+    }
+    
+    // Save the PDF
+    return URL.createObjectURL(doc.output('blob'));
+  } catch (error) {
+    console.error('Error generating PDF:', error);
+    throw error;
   }
-  
-  // Save the PDF
-  return URL.createObjectURL(doc.output('blob'));
 };
 
+/**
+ * Generate a PDF report for a multi-lot task
+ */
 export const generateTaskPDF = async (task: Task): Promise<string> => {
-  // A4 size in mm: 210 x 297
-  const doc = new jsPDF({
-    orientation: 'portrait',
-    unit: 'mm',
-    format: 'a4'
-  });
-  
-  // Add title
-  doc.setFontSize(22);
-  doc.text(`Task Report: ${task.name}`, 105, 20, { align: 'center' });
-  
-  // Add task info
-  doc.setFontSize(14);
-  doc.text('Task Information', 15, 40);
-  
-  doc.setFontSize(12);
-  doc.text(`Type: ${task.type === 'multi-lot' ? 'Multi-Lot Analysis' : 'Single-Lot Analysis'}`, 15, 50);
-  doc.text(`Created: ${task.createdAt.toLocaleString()}`, 15, 60);
-  doc.text(`Status: ${task.status}`, 15, 70);
-  if (task.completedAt) {
-    doc.text(`Completed: ${task.completedAt.toLocaleString()}`, 15, 80);
-  }
-  
-  // Add a simple table for images and their analysis
-  if (task.images.length > 0) {
-    // Add image table
-    doc.addPage();
-    doc.setFontSize(18);
-    doc.text('Analysis Results', 105, 20, { align: 'center' });
-    
-    // Create table
-    doc.autoTable({
-      startY: 30,
-      theme: 'grid',
-      headStyles: { fillColor: [100, 100, 100], textColor: [255, 255, 255] },
-      head: [['Image', 'Analysis']],
-      columnStyles: {
-        0: { cellWidth: 60 },
-        1: { cellWidth: 130 }
-      },
-      body: await Promise.all(task.images.map(async (image) => {
-        // For each image, prepare a cell with the image and a cell with the analysis
-        let imgCell = '';
-        try {
-          // Resize image for the PDF
-          const resizedImageUrl = await resizeImage(image.imageUrl, 150, 150);
-          imgCell = resizedImageUrl;
-        } catch (error) {
-          console.error("Error resizing image for PDF:", error);
-          imgCell = '';
-        }
-        
-        // Prepare analysis text
-        let analysisText = '';
-        if (image.analysisResult && image.analysisResult.claudeAnalysis) {
-          analysisText = image.analysisResult.claudeAnalysis;
-        } else {
-          analysisText = 'No analysis available for this image.';
-        }
-        
-        return [
-          { content: imgCell, rowSpan: 1, cellWidth: 40, styles: { minCellHeight: 60 } },
-          { content: analysisText, rowSpan: 1, cellWidth: 130 }
-        ];
-      })),
-      didDrawCell: (data) => {
-        // This callback is used to draw images in the table
-        if (data.column.index === 0 && data.cell.section === 'body') {
-          const imgUrl = data.cell.raw;
-          if (imgUrl && typeof imgUrl === 'string') {
-            try {
-              const cellHeight = data.cell.height;
-              const cellWidth = data.cell.width;
-              const dim = Math.min(cellWidth, cellHeight) - 10;
-              const x = data.cell.x + (cellWidth - dim) / 2;
-              const y = data.cell.y + 5;
-              
-              doc.addImage(imgUrl, 'JPEG', x, y, dim, dim);
-            } catch (error) {
-              console.error("Error adding image to PDF cell:", error);
-            }
-          }
-        }
-      }
+  try {
+    // A4 size in mm: 210 x 297
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4'
     });
+    
+    // Add EstateGenius AI style header
+    addHeader(doc);
+    
+    // Define starting position after header
+    let currentY = 50;
+    
+    // Add table headers
+    doc.setFillColor(128, 128, 128);  // Grey background
+    doc.setTextColor(255, 255, 255);  // White text
+    doc.setFontSize(12);
+    doc.rect(10, currentY, 60, 10, 'F');
+    doc.rect(70, currentY, 130, 10, 'F');
+    doc.text("Image", 40, currentY + 6, { align: 'center' });
+    doc.text("Analysis", 135, currentY + 6, { align: 'center' });
+    
+    // Reset text color
+    doc.setTextColor(0, 0, 0);
+    
+    currentY += 10;
+    
+    // Process each image
+    for (let i = 0; i < task.images.length; i++) {
+      const image = task.images[i];
+      
+      // Check if we need a new page
+      if (currentY > 250) {
+        doc.addPage();
+        currentY = 20;
+        
+        // Add table headers on new page
+        doc.setFillColor(128, 128, 128);
+        doc.setTextColor(255, 255, 255);
+        doc.rect(10, currentY, 60, 10, 'F');
+        doc.rect(70, currentY, 130, 10, 'F');
+        doc.text("Image", 40, currentY + 6, { align: 'center' });
+        doc.text("Analysis", 135, currentY + 6, { align: 'center' });
+        doc.setTextColor(0, 0, 0);
+        currentY += 10;
+      }
+      
+      // Add image cell with border
+      doc.setDrawColor(0);
+      doc.rect(10, currentY, 60, 60);
+      doc.setFillColor(245, 245, 220);  // Beige background
+      doc.rect(10, currentY, 60, 60, 'F');
+      
+      try {
+        // Add image
+        const resizedImageUrl = await resizeImage(image.imageUrl, 150, 150);
+        doc.addImage(resizedImageUrl, 'JPEG', 15, currentY + 5, 50, 50);
+      } catch (error) {
+        console.error('Error adding image to PDF:', error);
+        doc.text('Image not available', 25, currentY + 30);
+      }
+      
+      // Add analysis cell with border
+      doc.rect(70, currentY, 130, 60);
+      doc.setFillColor(245, 245, 220);  // Beige background
+      doc.rect(70, currentY, 130, 60, 'F');
+      
+      // Format analysis content
+      doc.setFontSize(10);
+      if (image.analysisResult) {
+        const analysisText = formatAnalysisText(image.analysisResult);
+        const splitText = doc.splitTextToSize(analysisText, 120);
+        doc.text(splitText, 75, currentY + 10);
+      } else {
+        doc.text('No analysis available for this image.', 75, currentY + 30);
+      }
+      
+      currentY += 60;
+    }
+    
+    // Save the PDF
+    return URL.createObjectURL(doc.output('blob'));
+  } catch (error) {
+    console.error('Error generating task PDF:', error);
+    throw error;
+  }
+};
+
+/**
+ * Add EstateGenius AI style header to PDF
+ */
+function addHeader(doc: jsPDF): void {
+  // Add contact info (top left)
+  doc.setFontSize(9);
+  doc.setTextColor(100, 100, 100);  // Grey color
+  doc.text("Email: clara@estategeniusai.com", 20, 15);
+  doc.text("Mobile: (+1)4696597089", 20, 20);
+  doc.text("Website: www.estategeniusai.com", 20, 25);
+  
+  // Add main title (center)
+  doc.setFontSize(16);
+  doc.setTextColor(217, 119, 87);  // Orange/coral color
+  doc.text("EstateGenius AI", 105, 15, { align: 'center' });
+  
+  // Add taglines (center)
+  doc.setFontSize(11);
+  doc.setTextColor(0, 0, 0);
+  doc.text("Your Pricing Partner", 105, 25, { align: 'center' });
+  doc.text("Saves Hours of Internet Search", 105, 30, { align: 'center' });
+  doc.text("We Customize AI According to Your Needs", 105, 35, { align: 'center' });
+}
+
+/**
+ * Format analysis text with bullet points
+ */
+function formatAnalysisText(analysis: AnalysisResult): string {
+  let text = '';
+  
+  // Add name if available
+  if (analysis.claudeAnalysis) {
+    return analysis.claudeAnalysis;
   }
   
-  // Save the PDF
-  return URL.createObjectURL(doc.output('blob'));
-};
+  // Otherwise format from basic analysis
+  text += `• Name: "${analysis.description || 'Analyzed Item'}"\n`;
+  text += `• Opinion: This item appears to be in good condition. `;
+  text += `It has several distinguishing features that make it collectable.\n`;
+  
+  // Add objects detected
+  if (analysis.objects && analysis.objects.length > 0) {
+    text += `• Key Features: ${analysis.objects.map(obj => obj.name).join(', ')}\n`;
+  }
+  
+  // Add tags
+  if (analysis.tags && analysis.tags.length > 0) {
+    text += `• Tags: ${analysis.tags.join(', ')}\n`;
+  }
+  
+  return text;
+}
 
 export const downloadPDF = (url: string, filename: string = 'analysis-report.pdf') => {
   const link = document.createElement('a');

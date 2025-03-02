@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -49,7 +48,12 @@ export const useApiKeys = () => {
     return masked;
   };
 
-  return { apiKeys, updateApiKey, getMaskedApiKeys };
+  // Check if API keys are configured
+  const areApiKeysConfigured = () => {
+    return !!(apiKeys.imgbb && apiKeys.searchApi && apiKeys.anthropic);
+  };
+
+  return { apiKeys, updateApiKey, getMaskedApiKeys, areApiKeysConfigured };
 };
 
 type ApiKeyManagerProps = {
@@ -61,19 +65,23 @@ type ApiKeyManagerProps = {
 const ApiKeyManager = ({ open, onOpenChange, adminMode = false }: ApiKeyManagerProps) => {
   const { apiKeys, updateApiKey, getMaskedApiKeys } = useApiKeys();
   const [tempKeys, setTempKeys] = useState<ApiKey>(adminMode ? apiKeys : getMaskedApiKeys());
-  
-  // If not admin, show a message
   const [isUserAdmin, setIsUserAdmin] = useState(adminMode);
+
+  // Get user role from local storage
+  const userRole = localStorage.getItem('userRole');
+  const isAdmin = userRole === 'admin';
 
   useEffect(() => {
     if (open) {
-      setTempKeys(adminMode ? apiKeys : getMaskedApiKeys());
+      // If the user is not an admin, they should only see masked keys
+      // If they are an admin, they can see and edit the actual keys
+      setTempKeys(isAdmin ? apiKeys : getMaskedApiKeys());
     }
-  }, [open, apiKeys, adminMode]);
+  }, [open, apiKeys, isAdmin]);
 
   const handleSave = () => {
-    // If not in admin mode, don't allow saving
-    if (!adminMode) {
+    // If not an admin user, don't allow saving
+    if (!isAdmin) {
       toast.error('Only administrators can change API keys');
       onOpenChange(false);
       return;
@@ -99,64 +107,76 @@ const ApiKeyManager = ({ open, onOpenChange, adminMode = false }: ApiKeyManagerP
         <DialogHeader>
           <DialogTitle>API Keys Configuration</DialogTitle>
           <DialogDescription>
-            {adminMode 
+            {isAdmin 
               ? 'Configure API keys for image analysis functionality.'
               : 'View the API keys configuration. Only administrators can modify these keys.'}
           </DialogDescription>
         </DialogHeader>
 
-        {!adminMode && (
+        {!isAdmin && (
           <div className="bg-amber-50 border border-amber-200 rounded-md p-3 text-amber-800 mb-4 flex items-start">
             <AlertTriangle className="h-5 w-5 mr-2 flex-shrink-0 text-amber-500" />
             <p className="text-sm">
-              You are viewing API keys in read-only mode. Please contact an administrator to make changes.
+              API keys are managed by administrators. Please contact an administrator if you need changes.
             </p>
           </div>
         )}
 
         <div className="grid gap-4 py-4">
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="imgbb" className="text-right col-span-1">
-              ImgBB
-            </Label>
-            <Input
-              id="imgbb"
-              value={tempKeys.imgbb}
-              onChange={(e) => adminMode && setTempKeys({ ...tempKeys, imgbb: e.target.value })}
-              placeholder="ImgBB API Key"
-              className="col-span-3"
-              disabled={!adminMode}
-            />
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="searchApi" className="text-right col-span-1">
-              SearchAPI
-            </Label>
-            <Input
-              id="searchApi"
-              value={tempKeys.searchApi}
-              onChange={(e) => adminMode && setTempKeys({ ...tempKeys, searchApi: e.target.value })}
-              placeholder="SearchAPI Key"
-              className="col-span-3"
-              disabled={!adminMode}
-            />
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="anthropic" className="text-right col-span-1">
-              Anthropic
-            </Label>
-            <Input
-              id="anthropic"
-              value={tempKeys.anthropic}
-              onChange={(e) => adminMode && setTempKeys({ ...tempKeys, anthropic: e.target.value })}
-              placeholder="Anthropic API Key"
-              className="col-span-3"
-              disabled={!adminMode}
-            />
-          </div>
+          {isAdmin ? (
+            // Admin view - shows full keys and allows editing
+            <>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="imgbb" className="text-right col-span-1">
+                  ImgBB
+                </Label>
+                <Input
+                  id="imgbb"
+                  value={tempKeys.imgbb}
+                  onChange={(e) => setTempKeys({ ...tempKeys, imgbb: e.target.value })}
+                  placeholder="ImgBB API Key"
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="searchApi" className="text-right col-span-1">
+                  SearchAPI
+                </Label>
+                <Input
+                  id="searchApi"
+                  value={tempKeys.searchApi}
+                  onChange={(e) => setTempKeys({ ...tempKeys, searchApi: e.target.value })}
+                  placeholder="SearchAPI Key"
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="anthropic" className="text-right col-span-1">
+                  Anthropic
+                </Label>
+                <Input
+                  id="anthropic"
+                  value={tempKeys.anthropic}
+                  onChange={(e) => setTempKeys({ ...tempKeys, anthropic: e.target.value })}
+                  placeholder="Anthropic API Key"
+                  className="col-span-3"
+                />
+              </div>
+            </>
+          ) : (
+            // Non-admin view - shows message that keys are managed by admins
+            <div className="p-4 bg-gray-50 rounded-md text-center">
+              <p className="text-gray-600">
+                API keys are configured and managed by administrators.
+              </p>
+              <p className="text-gray-500 text-sm mt-2">
+                These keys are required for image analysis functionality.
+              </p>
+            </div>
+          )}
         </div>
         <DialogFooter>
-          {adminMode ? (
+          {isAdmin ? (
             <Button type="submit" onClick={handleSave}>Save changes</Button>
           ) : (
             <Button type="button" onClick={() => onOpenChange(false)}>Close</Button>
