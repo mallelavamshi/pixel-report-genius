@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '@/integrations/supabase/client';
@@ -12,7 +13,12 @@ export interface AnalysisResult {
   colors?: { color: string; percentage: number }[];
   tags?: string[];
   description?: string;
-  searchResults?: { title: string; price: string; source: string; url: string }[];
+  searchResults?: { 
+    title: string; 
+    price?: string; // Made price optional to match SearchResult type
+    source: string; 
+    url: string 
+  }[];
   claudeAnalysis?: string;
 }
 
