@@ -1,5 +1,4 @@
 
-import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import NavBar from '@/components/NavBar';
 import Hero from '@/components/Hero';
@@ -10,21 +9,13 @@ import { useAuth } from '@/contexts/AuthContext';
 
 const Index = () => {
   const navigate = useNavigate();
-  const [isHeroVisible, setIsHeroVisible] = useState(true);
   const { user } = useAuth();
-
-  useEffect(() => {
-    // If user is already logged in, redirect to dashboard
-    if (user) {
-      navigate('/dashboard');
-    }
-  }, [user, navigate]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-white to-[#F6F6F7]">
       <NavBar />
       
-      {isHeroVisible && <Hero />}
+      <Hero />
       
       <Features />
       

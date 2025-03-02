@@ -2,18 +2,18 @@
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 const Hero = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   
   const handleGetStarted = () => {
-    // For demonstration purposes, set a user as logged in with free tier
-    localStorage.setItem('userLoggedIn', 'true');
-    localStorage.setItem('userRole', 'user');
-    localStorage.setItem('userTier', 'free');
-    
-    // Navigate to tasks page
-    navigate('/tasks');
+    if (user) {
+      navigate('/dashboard');
+    } else {
+      navigate('/login');
+    }
   };
 
   return (
@@ -35,7 +35,7 @@ const Hero = () => {
               onClick={handleGetStarted}
               className="bg-[#8B5CF6] hover:bg-[#7E69AB] text-white px-5 py-2 rounded-md shadow-md"
             >
-              Get Started <ArrowRight className="ml-1 h-4 w-4" />
+              {user ? 'Go to Dashboard' : 'Get Started'} <ArrowRight className="ml-1 h-4 w-4" />
             </Button>
             <Button 
               variant="outline" 

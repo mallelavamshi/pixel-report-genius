@@ -1,5 +1,5 @@
 
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AnalysisProvider } from './contexts/AnalysisContext';
 import { AuthProvider } from './contexts/AuthContext';
 import { Toaster } from './components/ui/sonner';
