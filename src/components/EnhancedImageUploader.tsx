@@ -8,7 +8,8 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { useAnalysis, TaskImage } from '@/contexts/AnalysisContext';
+import { useAnalysis } from '@/contexts/AnalysisContext';
+import { TaskImage } from '@/contexts/types/analysisTypes';
 
 type UploadMethod = 'camera' | 'gallery' | null;
 
