@@ -6,9 +6,9 @@ export interface UserProfile {
   email: string | null;
   full_name: string | null;
   role: string | null;
-  subscription_tier: string; // Add subscription tier
-  image_credits: number; // Add image credits tracking
-  credits_used: number; // Add credits used tracking
+  subscription_tier: string; 
+  image_credits: number;
+  credits_used: number;
 }
 
 export interface AuthState {

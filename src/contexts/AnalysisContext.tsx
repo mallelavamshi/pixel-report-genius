@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '@/integrations/supabase/client';
@@ -75,6 +76,8 @@ interface AnalysisContextType {
   analyses: AnalysisResult[];
   currentAnalysis: AnalysisResult | null;
   setCurrentAnalysis: (analysis: AnalysisResult | null) => void;
+  addAnalysis: (analysis: AnalysisResult) => void;
+  getAnalysis: (id: string) => AnalysisResult | undefined;
   setIsLoading: (loading: boolean) => void;
   isLoading: boolean;
 }
@@ -92,9 +95,9 @@ const AnalysisContext = createContext<AnalysisContextType>({
   fetchUserTasks: async () => {},
   analyses: [],
   currentAnalysis: null,
+  setCurrentAnalysis: () => {},
   addAnalysis: () => {},
   getAnalysis: () => undefined,
-  setCurrentAnalysis: () => {},
   isLoading: false,
   setIsLoading: () => {},
 });
