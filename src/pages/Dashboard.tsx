@@ -28,10 +28,13 @@ const Dashboard = () => {
           toast.error("Failed to load your tasks");
         }
       }
+      // Always set loading to false, even if there's no user or if there was an error
       setIsLoading(false);
     };
 
-    loadUserTasks();
+    // Set a short timeout to prevent flash of loading state for already logged-in users
+    const timeoutId = setTimeout(loadUserTasks, 300);
+    return () => clearTimeout(timeoutId);
   }, [user, fetchUserTasks]);
 
   // Filter tasks based on active tab
