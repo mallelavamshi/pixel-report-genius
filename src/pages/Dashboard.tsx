@@ -4,24 +4,36 @@ import { useNavigate } from 'react-router-dom';
 import CustomNavBar from '@/components/CustomNavBar';
 import TaskCard from '@/components/TaskCard';
 import { useAnalysis } from '@/contexts/AnalysisContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { PlusCircle } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const { tasks, deleteTask } = useAnalysis();
+  const { tasks, deleteTask, fetchUserTasks } = useAnalysis();
+  const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("all");
   
   useEffect(() => {
-    // Simulate loading
-    setTimeout(() => {
+    const loadUserTasks = async () => {
+      setIsLoading(true);
+      if (user) {
+        try {
+          await fetchUserTasks(user.id);
+        } catch (error) {
+          console.error("Error fetching user tasks:", error);
+          toast.error("Failed to load your tasks");
+        }
+      }
       setIsLoading(false);
-      console.log("Dashboard loaded, tasks:", tasks);
-    }, 500);
-  }, [tasks]);
+    };
+
+    loadUserTasks();
+  }, [user, fetchUserTasks]);
 
   // Filter tasks based on active tab
   const filteredTasks = tasks.filter(task => {
@@ -36,9 +48,9 @@ const Dashboard = () => {
     navigate('/tasks');
   };
 
-  const handleDeleteTask = (taskId: string) => {
+  const handleDeleteTask = async (taskId: string) => {
     try {
-      deleteTask(taskId);
+      await deleteTask(taskId);
       toast.success("Task deleted successfully");
     } catch (error) {
       console.error("Error deleting task:", error);

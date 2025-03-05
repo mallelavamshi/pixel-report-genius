@@ -1,6 +1,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { UserProfile } from './types';
 
 export const clearAuthState = () => {
   localStorage.removeItem('supabase.auth.token');
@@ -20,9 +21,20 @@ export const fetchProfile = async (userId: string) => {
 
     if (error) throw error;
     
+    // Ensure we have subscription tier and image credits in the profile
+    const profile: UserProfile = {
+      id: data.id,
+      email: data.email,
+      full_name: data.full_name,
+      role: data.role || 'user',
+      subscription_tier: data.subscription_tier || 'basic',
+      image_credits: data.image_credits || 200,
+      credits_used: data.credits_used || 0
+    };
+    
     return {
-      profile: data,
-      isAdmin: data?.role === 'admin'
+      profile,
+      isAdmin: profile.role === 'admin'
     };
   } catch (error) {
     console.error('Error fetching profile:', error);
@@ -48,12 +60,17 @@ export const signUp = async (email: string, password: string, fullName: string) 
     if (error) throw error;
 
     if (data.user) {
+      // Create profile with default 'basic' subscription and 200 image credits
       const { error: profileError } = await supabase
         .from('profiles')
         .insert({
           id: data.user.id,
           email: email,
           full_name: fullName,
+          role: 'user',
+          subscription_tier: 'basic',
+          image_credits: 200,
+          credits_used: 0
         });
 
       if (profileError) {
