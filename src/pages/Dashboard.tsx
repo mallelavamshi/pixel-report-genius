@@ -9,7 +9,6 @@ import { Button } from '@/components/ui/button';
 import { PlusCircle } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from 'sonner';
-import { supabase } from '@/integrations/supabase/client';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -36,13 +35,13 @@ const Dashboard = () => {
   }, [user, fetchUserTasks]);
 
   // Filter tasks based on active tab
-  const filteredTasks = tasks.filter(task => {
+  const filteredTasks = user ? tasks.filter(task => {
     if (activeTab === "all") return true;
     if (activeTab === "pending") return task.status === "pending" || task.status === "processing";
     if (activeTab === "completed") return task.status === "completed";
     if (activeTab === "failed") return task.status === "failed";
     return true;
-  });
+  }) : [];
 
   const handleCreateNewTask = () => {
     navigate('/tasks');
@@ -106,6 +105,10 @@ const Dashboard = () => {
 
         {isLoading ? (
           <p className="text-center text-gray-500">Loading tasks...</p>
+        ) : !user ? (
+          <div className="text-center py-12 bg-white rounded-lg shadow-sm p-8">
+            <p className="text-gray-600 mb-4">Please log in to view your tasks.</p>
+          </div>
         ) : filteredTasks.length === 0 ? (
           <div className="text-center py-12 bg-white rounded-lg shadow-sm p-8">
             <p className="text-gray-600 mb-4">No tasks found.</p>

@@ -67,8 +67,19 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const { user } = useAuth();
 
+  // Clear tasks when user logs out
+  useEffect(() => {
+    if (!user) {
+      setTasks([]);
+      setCurrentTask(null);
+    }
+  }, [user]);
+
   const fetchUserTasks = async (userId: string) => {
-    if (!userId) return;
+    if (!userId) {
+      setTasks([]);
+      return;
+    }
     
     try {
       const fetchedTasks = await fetchTasks(userId);
@@ -82,6 +93,9 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   useEffect(() => {
     if (user) {
       fetchUserTasks(user.id).catch(console.error);
+    } else {
+      // Clear tasks when there is no user
+      setTasks([]);
     }
   }, [user]);
 
