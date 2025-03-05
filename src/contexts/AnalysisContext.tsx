@@ -1,11 +1,9 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
-// Define task and image types
 export interface Image {
   id: string;
   imageUrl: string;
@@ -23,10 +21,9 @@ export interface Task {
   createdAt: string;
   completedAt?: string;
   images: Image[];
-  userId?: string; // Add userId field to track task ownership
+  userId?: string;
 }
 
-// Aliasing Image as TaskImage for backward compatibility
 export type TaskImage = Image;
 
 export interface SearchResult {
@@ -74,19 +71,14 @@ interface AnalysisContextType {
   addImageToTask: (taskId: string, imageUrl: string, description?: string) => void;
   removeImageFromTask: (taskId: string, imageId: string) => void;
   getTask: (id: string) => Task | undefined;
-  fetchUserTasks: (userId: string) => Promise<void>; // New function to fetch user-specific tasks
-  
-  // Additional methods needed by components
-  getAnalysis: (id: string) => AnalysisResult | undefined;
-  addAnalysis: (analysis: AnalysisResult) => void;
-  setCurrentAnalysis: (analysis: AnalysisResult | null) => void;
-  setIsLoading: (loading: boolean) => void;
+  fetchUserTasks: (userId: string) => Promise<void>;
   analyses: AnalysisResult[];
   currentAnalysis: AnalysisResult | null;
+  setCurrentAnalysis: (analysis: AnalysisResult | null) => void;
+  setIsLoading: (loading: boolean) => void;
   isLoading: boolean;
 }
 
-// Create context with initial values
 const AnalysisContext = createContext<AnalysisContextType>({
   tasks: [],
   currentTask: null,
@@ -98,8 +90,6 @@ const AnalysisContext = createContext<AnalysisContextType>({
   removeImageFromTask: () => {},
   getTask: () => undefined,
   fetchUserTasks: async () => {},
-  
-  // Additional methods with default values
   analyses: [],
   currentAnalysis: null,
   addAnalysis: () => {},
@@ -117,7 +107,6 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const { user } = useAuth();
 
-  // Fetch user tasks from Supabase
   const fetchUserTasks = async (userId: string) => {
     if (!userId) return;
     
@@ -176,15 +165,13 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   };
 
-  // Effect to load tasks for the current user
   useEffect(() => {
     if (user) {
       fetchUserTasks(user.id).catch(console.error);
     }
   }, [user]);
 
-  // Create a new task and save to Supabase
-  const createTask = async (type: 'single-lot' | 'multi-lot'): Promise<Task> => {
+  const createTask = (type: 'single-lot' | 'multi-lot'): Task => {
     if (!user) {
       toast.error("You must be logged in to create tasks");
       throw new Error("Authentication required");
@@ -200,36 +187,35 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       userId: user.id
     };
 
-    try {
-      // Save task to Supabase
-      const { error } = await supabase
-        .from('tasks')
-        .insert({
-          id: newTask.id,
-          name: newTask.name,
-          type: newTask.type,
-          status: newTask.status,
-          created_at: newTask.createdAt,
-          user_id: user.id
-        });
+    (async () => {
+      try {
+        const { error } = await supabase
+          .from('tasks')
+          .insert({
+            id: newTask.id,
+            name: newTask.name,
+            type: newTask.type,
+            status: newTask.status,
+            created_at: newTask.createdAt,
+            user_id: user.id
+          });
 
-      if (error) {
-        console.error('Error creating task in Supabase:', error);
-        toast.error("Failed to create task. Please try again.");
-        throw error;
+        if (error) {
+          console.error('Error creating task in Supabase:', error);
+          toast.error("Failed to create task. Please try again.");
+        } else {
+          setTasks(prevTasks => [newTask, ...prevTasks]);
+        }
+      } catch (error) {
+        console.error('Error in createTask:', error);
       }
+    })();
 
-      setTasks(prevTasks => [newTask, ...prevTasks]);
-      return newTask;
-    } catch (error) {
-      console.error('Error in createTask:', error);
-      throw error;
-    }
+    return newTask;
   };
 
   const updateTask = async (id: string, updates: Partial<Task>) => {
     try {
-      // First update the task in Supabase
       const supabaseUpdates: Record<string, any> = {};
       
       if (updates.name) supabaseUpdates.name = updates.name;
@@ -249,7 +235,6 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         }
       }
       
-      // Then update the local state
       setTasks(prevTasks => 
         prevTasks.map(task => 
           task.id === id ? { ...task, ...updates } : task
@@ -267,7 +252,6 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   
   const deleteTask = async (id: string) => {
     try {
-      // Delete from Supabase first
       const { error } = await supabase
         .from('tasks')
         .delete()
@@ -278,7 +262,6 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         throw error;
       }
       
-      // Then update local state
       setTasks(prevTasks => prevTasks.filter(task => task.id !== id));
       
       if (currentTask && currentTask.id === id) {
@@ -299,7 +282,6 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     };
 
     try {
-      // Save image to Supabase
       const { error } = await supabase
         .from('images')
         .insert({
@@ -315,7 +297,6 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         throw error;
       }
       
-      // Update local state
       setTasks(prevTasks => 
         prevTasks.map(task => 
           task.id === taskId 
@@ -338,7 +319,6 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const removeImageFromTask = async (taskId: string, imageId: string) => {
     try {
-      // Delete from Supabase first
       const { error } = await supabase
         .from('images')
         .delete()
@@ -349,7 +329,6 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         throw error;
       }
       
-      // Update local state
       setTasks(prevTasks => 
         prevTasks.map(task => 
           task.id === taskId 

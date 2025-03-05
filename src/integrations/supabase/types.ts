@@ -46,22 +46,31 @@ export type Database = {
       }
       profiles: {
         Row: {
+          credits_used: number | null
           email: string | null
           full_name: string | null
           id: string
+          image_credits: number | null
           role: string | null
+          subscription_tier: string | null
         }
         Insert: {
+          credits_used?: number | null
           email?: string | null
           full_name?: string | null
           id: string
+          image_credits?: number | null
           role?: string | null
+          subscription_tier?: string | null
         }
         Update: {
+          credits_used?: number | null
           email?: string | null
           full_name?: string | null
           id?: string
+          image_credits?: number | null
           role?: string | null
+          subscription_tier?: string | null
         }
         Relationships: []
       }
