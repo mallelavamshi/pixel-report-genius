@@ -1,5 +1,5 @@
 
-import { AnalysisResult, Task } from '@/contexts/AnalysisContext';
+import { AnalysisResult, Task } from '@/contexts/types/analysisTypes';
 import { jsPDF } from 'jspdf';
 import { resizeImage } from '@/services/imgbbService';
 import { supabase } from '@/integrations/supabase/client';

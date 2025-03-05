@@ -4,7 +4,7 @@ import { formatDistance } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { ExternalLink, Trash2 } from 'lucide-react';
-import { Task } from '@/contexts/AnalysisContext';
+import { Task } from '@/contexts/types/analysisTypes';
 import { Button } from '@/components/ui/button';
 import {
   AlertDialog,

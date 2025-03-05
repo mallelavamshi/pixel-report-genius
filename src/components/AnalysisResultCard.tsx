@@ -1,5 +1,5 @@
 
-import { TaskImage } from '@/contexts/AnalysisContext';
+import { TaskImage } from '@/contexts/types/analysisTypes';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';

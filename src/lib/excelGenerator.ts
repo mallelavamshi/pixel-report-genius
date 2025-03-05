@@ -1,4 +1,5 @@
-import { AnalysisResult, Task } from '@/contexts/AnalysisContext';
+
+import { AnalysisResult, Task } from '@/contexts/types/analysisTypes';
 import { utils, write } from 'xlsx';
 import { jsPDF } from 'jspdf';
 import { resizeImage } from '@/services/imgbbService';

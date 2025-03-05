@@ -16,6 +16,9 @@ import {
   getAnalysis as getAnalysisById
 } from './services/analysisService';
 
+// Re-export types for backward compatibility
+export type { Task, AnalysisResult, Image, TaskImage } from './types/analysisTypes';
+
 interface AnalysisContextType {
   tasks: Task[];
   currentTask: Task | null;
